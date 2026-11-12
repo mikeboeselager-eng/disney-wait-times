@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Disney Waits">
+  <meta name="application-name" content="Disney Waits">
+  <meta name="theme-color" content="#0c142c">
+  <meta name="description" content="Live Disney World wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.">
+  <title>Disney World Wait Times & Insights</title>
+
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="app.css">
+</head>
+<body class="theme-mk">
+  <div id="app" class="app-container">
+
+    <!-- Top Safe Area Header -->
+    <header class="app-header">
+      <div class="header-main">
+        <div class="park-identity" id="parkHeaderTitle">
+          <div class="park-crest" id="parkCrest">🏰</div>
+          <div class="park-meta">
+            <span class="park-tag">Walt Disney World®</span>
+            <div class="park-name-row" id="openParkSelectorBtn">
+              <h1 class="park-name" id="currentParkName">Magic Kingdom</h1>
+              <span class="chevron-down">▾</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <!-- Auto-refresh countdown pill -->
+          <div class="timer-pill" id="timerPill" title="Auto-refreshes every 5 mins">
+            <span class="pulse-dot"></span>
+            <span id="timerCountdown">5:00</span>
+          </div>
+
+          <!-- Manual Refresh Button -->
+          <button class="icon-btn" id="refreshBtn" title="Refresh wait times" aria-label="Refresh">
+            <svg class="refresh-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
+
+          <!-- Park Hopper Sheet Button -->
+          <button class="icon-btn hopper-btn" id="openHopperBtn" title="Park Hopper Comparison" aria-label="Park Hopper">
+            <span class="hopper-badge">HOP</span>
+          </button>
+
+          <!-- Settings Button -->
+          <button class="icon-btn" id="openSettingsBtn" title="Settings & Alerts" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Park Navigation Tabs -->
+      <nav class="park-tabs" aria-label="Parks">
+        <button class="park-tab active" data-park="75ea578a-adc8-4116-a54d-dccb60765ef9" data-theme="theme-mk">
+          <span class="tab-emoji">🏰</span>
+          <span class="tab-label">Magic Kingdom</span>
+          <span class="tab-badge" id="badge-mk">--</span>
+        </button>
+        <button class="park-tab" data-park="47f90d2c-e191-4239-a466-5892ef59a88b" data-theme="theme-epcot">
+          <span class="tab-emoji">🌐</span>
+          <span class="tab-label">EPCOT</span>
+          <span class="tab-badge" id="badge-epcot">--</span>
+        </button>
+        <button class="park-tab" data-park="288747d1-8b4f-4a64-867e-ea7c9b27bad8" data-theme="theme-dhs">
+          <span class="tab-emoji">🎬</span>
+          <span class="tab-label">Hollywood</span>
+          <span class="tab-badge" id="badge-dhs">--</span>
+        </button>
+        <button class="park-tab" data-park="1c84a229-8862-4648-9c71-378ddd2c7693" data-theme="theme-dak">
+          <span class="tab-emoji">🦁</span>
+          <span class="tab-label">Animal King.</span>
+          <span class="tab-badge" id="badge-dak">--</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="mainContent">
+
+      <!-- Priority Alert Banner (Dynamic: ≤ 20 min opportunity) -->
+      <section class="alert-banner" id="priorityAlertBanner" style="display: none;">
+        <div class="alert-glow"></div>
+        <div class="alert-icon-col">
+          <span class="alert-bell">⚡</span>
+        </div>
+        <div class="alert-body">
+          <div class="alert-headline-row">
+            <span class="alert-title">SHORT WAIT OPPORTUNITY!</span>
+            <span class="alert-count-pill" id="alertCountBadge">1 Ready</span>
+          </div>
+          <p class="alert-subtitle" id="alertSubtitle">
+            Your favorited rides currently have a wait time of <strong>20 minutes or less</strong>!
+          </p>
+          <div class="alert-rides-list" id="alertRidesList">
+            <!-- Dynamic ride chips -->
+          </div>
+        </div>
+        <button class="alert-dismiss-btn" id="dismissAlertBtn" aria-label="Dismiss">&times;</button>
+      </section>
+
+      <!-- Status & Park Stats Ribbon -->
+      <div class="stats-ribbon">
+        <div class="stat-item">
+          <span class="stat-label">Avg Wait</span>
+          <span class="stat-value" id="parkAvgWait">-- min</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-label">Open Rides</span>
+          <span class="stat-value" id="parkOpenRides">--</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-label">&le; 20m Waits</span>
+          <span class="stat-value highlight-green" id="parkWalkons">--</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-label">Last Updated</span>
+          <span class="stat-value" id="parkLastUpdated">Connecting...</span>
+        </div>
+      </div>
+
+      <!-- Controls: Search & Filter Chips -->
+      <section class="controls-section">
+        <!-- Search & Sort Row -->
+        <div class="search-sort-row">
+          <div class="search-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search rides, lands, characters..." autocomplete="off">
+            <button class="clear-search-btn" id="clearSearchBtn" style="display: none;">&times;</button>
+          </div>
+
+          <div class="sort-wrapper">
+            <select id="sortSelect" aria-label="Sort Rides">
+              <option value="priority">★ Priority First</option>
+              <option value="wait-asc" selected>⏱ Wait: Low → High</option>
+              <option value="wait-desc">⏱ Wait: High → Low</option>
+              <option value="alpha">🔤 Name: A → Z</option>
+              <option value="land">🗺 By Land</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Filter Chips Bar -->
+        <div class="filter-chips" id="filterChipsBar">
+          <button class="chip active" data-filter="all">All (<span id="count-all">0</span>)</button>
+          <button class="chip chip-mustdo" data-filter="must-do">★ Must-Do (<span id="count-mustdo">0</span>)</button>
+          <button class="chip chip-secondary" data-filter="secondary">◆ Backup (<span id="count-secondary">0</span>)</button>
+          <button class="chip chip-under20" data-filter="under20">⚡ &le; 20 min (<span id="count-under20">0</span>)</button>
+          <button class="chip" data-filter="thrill">🎢 Thrills</button>
+          <button class="chip" data-filter="family">👶 Family</button>
+          <button class="chip" data-filter="down">⚠️ Down / Closed</button>
+        </div>
+
+        <!-- Land Pills Filter (Horizontal scrollable) -->
+        <div class="land-chips" id="landChipsBar">
+          <!-- Dynamic lands populated by JS -->
+        </div>
+      </section>
+
+      <!-- Priority Legend / Guide Pill -->
+      <div class="priority-guide-bar">
+        <span class="guide-title">Favorites Priority:</span>
+        <span class="guide-item"><span class="gem-star gold">★</span> Must-Do (1st)</span>
+        <span class="guide-item"><span class="gem-star cyan">◆</span> Backup (2nd)</span>
+        <span class="guide-hint">Tap star on any ride to cycle priority</span>
+      </div>
+
+      <!-- Live Rides List Container -->
+      <section class="rides-container" id="ridesContainer">
+        <!-- Skeleton Loaders -->
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </section>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-emoji">🔍</div>
+        <h3 class="empty-title">No attractions found</h3>
+        <p class="empty-desc">Try clearing your filters or changing your search terms.</p>
+        <button class="btn btn-outline" id="resetFiltersBtn">Reset All Filters</button>
+      </div>
+
+    </main>
+
+    <!-- Park Hopper Overview Modal -->
+    <div class="modal-backdrop" id="hopperModal" style="display: none;">
+      <div class="modal-sheet hopper-sheet">
+        <div class="modal-drag-handle"></div>
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">🏰 Park Hopper Overview</h2>
+            <p class="modal-desc">Real-time comparison across all 4 Walt Disney World parks</p>
+          </div>
+          <button class="modal-close-btn" id="closeHopperModalBtn">&times;</button>
+        </div>
+
+        <div class="hopper-cards-list" id="hopperCardsList">
+          <!-- MK Card -->
+          <div class="hopper-park-card" data-park="75ea578a-adc8-4116-a54d-dccb60765ef9">
+            <div class="h-card-top">
+              <span class="h-park-name">🏰 Magic Kingdom</span>
+              <span class="h-avg-badge" id="hopAvg-mk">Avg --m</span>
+            </div>
+            <div class="h-card-stats">
+              <span>Open: <strong id="hopOpen-mk">--</strong></span>
+              <span>&le;20m: <strong class="highlight-green" id="hopWalk-mk">--</strong></span>
+              <span>Must-Dos: <strong class="highlight-gold" id="hopFav-mk">--</strong></span>
+            </div>
+            <div class="h-headliners" id="hopHeadliners-mk">Loading headliners...</div>
+            <button class="btn btn-sm btn-hop" data-park="75ea578a-adc8-4116-a54d-dccb60765ef9">Hop to Magic Kingdom</button>
+          </div>
+
+          <!-- EPCOT Card -->
+          <div class="hopper-park-card" data-park="47f90d2c-e191-4239-a466-5892ef59a88b">
+            <div class="h-card-top">
+              <span class="h-park-name">🌐 EPCOT</span>
+              <span class="h-avg-badge" id="hopAvg-epcot">Avg --m</span>
+            </div>
+            <div class="h-card-stats">
+              <span>Open: <strong id="hopOpen-epcot">--</strong></span>
+              <span>&le;20m: <strong class="highlight-green" id="hopWalk-epcot">--</strong></span>
+              <span>Must-Dos: <strong class="highlight-gold" id="hopFav-epcot">--</strong></span>
+            </div>
+            <div class="h-headliners" id="hopHeadliners-epcot">Loading headliners...</div>
+            <button class="btn btn-sm btn-hop" data-park="47f90d2c-e191-4239-a466-5892ef59a88b">Hop to EPCOT</button>
+          </div>
+
+          <!-- Hollywood Studios Card -->
+          <div class="hopper-park-card" data-park="288747d1-8b4f-4a64-867e-ea7c9b27bad8">
+            <div class="h-card-top">
+              <span class="h-park-name">🎬 Hollywood Studios</span>
+              <span class="h-avg-badge" id="hopAvg-dhs">Avg --m</span>
+            </div>
+            <div class="h-card-stats">
+              <span>Open: <strong id="hopOpen-dhs">--</strong></span>
+              <span>&le;20m: <strong class="highlight-green" id="hopWalk-dhs">--</strong></span>
+              <span>Must-Dos: <strong class="highlight-gold" id="hopFav-dhs">--</strong></span>
+            </div>
+            <div class="h-headliners" id="hopHeadliners-dhs">Loading headliners...</div>
+            <button class="btn btn-sm btn-hop" data-park="288747d1-8b4f-4a64-867e-ea7c9b27bad8">Hop to Hollywood Studios</button>
+          </div>
+
+          <!-- Animal Kingdom Card -->
+          <div class="hopper-park-card" data-park="1c84a229-8862-4648-9c71-378ddd2c7693">
+            <div class="h-card-top">
+              <span class="h-park-name">🦁 Animal Kingdom</span>
+              <span class="h-avg-badge" id="hopAvg-dak">Avg --m</span>
+            </div>
+            <div class="h-card-stats">
+              <span>Open: <strong id="hopOpen-dak">--</strong></span>
+              <span>&le;20m: <strong class="highlight-green" id="hopWalk-dak">--</strong></span>
+              <span>Must-Dos: <strong class="highlight-gold" id="hopFav-dak">--</strong></span>
+            </div>
+            <div class="h-headliners" id="hopHeadliners-dak">Loading headliners...</div>
+            <button class="btn btn-sm btn-hop" data-park="1c84a229-8862-4648-9c71-378ddd2c7693">Hop to Animal Kingdom</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings & Customization Modal -->
+    <div class="modal-backdrop" id="settingsModal" style="display: none;">
+      <div class="modal-sheet settings-sheet">
+        <div class="modal-drag-handle"></div>
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">⚙️ App Settings & Alerts</h2>
+            <p class="modal-desc">Personalize your Disney World touring experience</p>
+          </div>
+          <button class="modal-close-btn" id="closeSettingsModalBtn">&times;</button>
+        </div>
+
+        <div class="settings-content">
+          <!-- Alert Threshold -->
+          <div class="setting-group">
+            <div class="setting-title-row">
+              <span class="setting-label">🚨 Short Wait Alert Threshold</span>
+              <span class="setting-val-display" id="thresholdDisplay">20 min</span>
+            </div>
+            <p class="setting-subtext">Alerts trigger when your Must-Do or Backup rides drop to this wait or less.</p>
+            <div class="threshold-options">
+              <button class="threshold-pill" data-val="15">15 min</button>
+              <button class="threshold-pill active" data-val="20">20 min</button>
+              <button class="threshold-pill" data-val="25">25 min</button>
+              <button class="threshold-pill" data-val="30">30 min</button>
+            </div>
+          </div>
+
+          <!-- Sound Alert -->
+          <div class="setting-group">
+            <div class="setting-row-toggle">
+              <div>
+                <span class="setting-label">🔔 Magical Chime Sound</span>
+                <p class="setting-subtext">Plays a Disney fairy chime when a priority ride drops to ≤ threshold</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="soundToggle" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <button class="btn btn-sm btn-outline" id="testSoundBtn" style="margin-top: 10px;">✨ Test Magical Chime</button>
+          </div>
+
+          <!-- Push / Web Notifications -->
+          <div class="setting-group">
+            <div class="setting-row-toggle">
+              <div>
+                <span class="setting-label">📲 iOS Notifications</span>
+                <p class="setting-subtext">Send system notification on drop alert (Best when installed on Home Screen)</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="notifyToggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Auto Refresh Interval -->
+          <div class="setting-group">
+            <div class="setting-title-row">
+              <span class="setting-label">🔄 Auto-Refresh Interval</span>
+              <span class="setting-val-display" id="refreshIntervalDisplay">5 min</span>
+            </div>
+            <p class="setting-subtext">Refreshes live park wait times in the background while app is open.</p>
+            <div class="threshold-options">
+              <button class="refresh-pill" data-min="3">3 min</button>
+              <button class="refresh-pill active" data-min="5">5 min</button>
+              <button class="refresh-pill" data-min="10">10 min</button>
+            </div>
+          </div>
+
+          <!-- iPhone PWA Installation Guide -->
+          <div class="setting-group pwa-guide-box">
+            <div class="pwa-guide-header">
+              <span class="pwa-guide-icon">📱</span>
+              <strong>Add to your iPhone Home Screen</strong>
+            </div>
+            <ol class="pwa-steps">
+              <li>In Safari on iPhone, tap the <strong>Share button</strong> <span class="share-icon-pill">⎋</span> at the bottom.</li>
+              <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
+              <li>Tap <strong>Add</strong> in the top right corner.</li>
+              <li>Launch from your Home Screen for a seamless full-screen app experience!</li>
+            </ol>
+          </div>
+
+          <!-- Reset Priorities -->
+          <div class="setting-group">
+            <button class="btn btn-danger-outline btn-block" id="resetPrioritiesBtn">Clear All Must-Do & Backup Favorites</button>
+          </div>
+
+          <div class="app-version-footer">
+            <span>Disney Wait Times & Hopper v1.0 • Live API Powered</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Park Selector Bottom Sheet -->
+    <div class="modal-backdrop" id="parkSelectModal" style="display: none;">
+      <div class="modal-sheet park-select-sheet">
+        <div class="modal-drag-handle"></div>
+        <div class="modal-header">
+          <h2 class="modal-title">Select Walt Disney World Park</h2>
+          <button class="modal-close-btn" id="closeParkSelectBtn">&times;</button>
+        </div>
+        <div class="park-select-grid">
+          <div class="park-choice-card" data-park="75ea578a-adc8-4116-a54d-dccb60765ef9" data-theme="theme-mk">
+            <div class="choice-icon">🏰</div>
+            <div class="choice-info">
+              <h3>Magic Kingdom</h3>
+              <p>Fantasyland, Tomorrowland, Frontierland & more</p>
+            </div>
+            <span class="choice-arrow">→</span>
+          </div>
+
+          <div class="park-choice-card" data-park="47f90d2c-e191-4239-a466-5892ef59a88b" data-theme="theme-epcot">
+            <div class="choice-icon">🌐</div>
+            <div class="choice-info">
+              <h3>EPCOT</h3>
+              <p>World Celebration, Discovery, Nature & Showcase</p>
+            </div>
+            <span class="choice-arrow">→</span>
+          </div>
+
+          <div class="park-choice-card" data-park="288747d1-8b4f-4a64-867e-ea7c9b27bad8" data-theme="theme-dhs">
+            <div class="choice-icon">🎬</div>
+            <div class="choice-info">
+              <h3>Disney's Hollywood Studios</h3>
+              <p>Galaxy's Edge, Toy Story Land, Sunset Blvd</p>
+            </div>
+            <span class="choice-arrow">→</span>
+          </div>
+
+          <div class="park-choice-card" data-park="1c84a229-8862-4648-9c71-378ddd2c7693" data-theme="theme-dak">
+            <div class="choice-icon">🦁</div>
+            <div class="choice-info">
+              <h3>Disney's Animal Kingdom</h3>
+              <p>Pandora - World of Avatar, Africa, Asia</p>
+            </div>
+            <span class="choice-arrow">→</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Popup -->
+    <div class="toast-notification" id="toastNotification" style="display: none;">
+      <span class="toast-icon" id="toastIcon">✨</span>
+      <span class="toast-text" id="toastText">Refreshed</span>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
