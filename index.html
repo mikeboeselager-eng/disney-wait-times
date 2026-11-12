@@ -12,13 +12,13 @@
   <title>RopeDrop • Disney World Wait Times & Hopper</title>
 
   <!-- PWA Manifest & Icons -->
-  <link rel="manifest" href="manifest.json?v=2.0">
+  <link rel="manifest" href="manifest.json?v=2.1">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
-  <!-- Stylesheet (Cache-Busted v2.0) -->
-  <link rel="stylesheet" href="app.css?v=2.0">
+  <!-- Stylesheet (Cache-Busted v2.1) -->
+  <link rel="stylesheet" href="app.css?v=2.1">
 </head>
 <body class="theme-mk">
   <div id="app" class="app-container">
@@ -177,8 +177,8 @@
 
           <div class="sort-wrapper">
             <select id="sortSelect" aria-label="Sort Rides">
-              <option value="priority">★ Priority First</option>
-              <option value="wait-asc" selected>⏱ Wait: Low → High</option>
+              <option value="priority" selected>★ Must-Dos & Backups at Top</option>
+              <option value="wait-asc">⏱ Wait: Low → High</option>
               <option value="wait-desc">⏱ Wait: High → Low</option>
               <option value="alpha">🔤 Name: A → Z</option>
               <option value="land">🗺 By Land</option>
@@ -194,7 +194,7 @@
           <button class="chip chip-under20" data-filter="under20">⚡ &le; 20 min (<span id="count-under20">0</span>)</button>
           <button class="chip" data-filter="thrill">🎢 Thrills</button>
           <button class="chip" data-filter="family">👶 Family</button>
-          <button class="chip chip-ignored" data-filter="ignored">🚫 Ignored (<span id="count-ignored">0</span>)</button>
+          <button class="chip chip-ignored" data-filter="ignored">🚫 Hidden at Bottom (<span id="count-ignored">0</span>)</button>
           <button class="chip" data-filter="down">⚠️ Down / Closed</button>
         </div>
 
@@ -204,13 +204,13 @@
         </div>
       </section>
 
-      <!-- Priority Legend / Guide Pill -->
+      <!-- Priority Order Guide Pill -->
       <div class="priority-guide-bar">
-        <span class="guide-title">Favorites:</span>
-        <span class="guide-item"><span class="gem-star gold">★</span> Must-Do</span>
+        <span class="guide-title">Order:</span>
+        <span class="guide-item"><span class="gem-star gold">★</span> Must-Do (Top)</span>
         <span class="guide-item"><span class="gem-star cyan">◆</span> Backup</span>
-        <span class="guide-item"><span class="gem-star muted">🚫</span> Never Ride</span>
-        <span class="guide-hint">Tap star on any ride to save</span>
+        <span class="guide-item"><span class="gem-star muted">🚫</span> Hidden (Bottom)</span>
+        <span class="guide-hint">Tap 🚫 to move ride to bottom</span>
       </div>
 
       <!-- Live Rides List Container -->
@@ -332,12 +332,12 @@
             </div>
             <div class="share-stat-badge">
               <strong id="shareIgnoredCount">0</strong>
-              <span>🚫 Ignored</span>
+              <span>🚫 Hidden</span>
             </div>
           </div>
 
           <p class="setting-subtext" style="margin-bottom: 12px;">
-            When family members open this link on their iPhone, your plan will be saved directly into their app. They can keep it synced or customize their own favorites!
+            When family members open this link on their iPhone, your plan will be saved directly into their app.
           </p>
 
           <button class="btn btn-gold btn-block" id="nativeShareBtn" style="margin-bottom: 10px;">
@@ -446,11 +446,11 @@
           <!-- Ignored Rides Management -->
           <div class="setting-group">
             <div class="setting-title-row">
-              <span class="setting-label">🚫 Ignored Rides (Never Ride)</span>
+              <span class="setting-label">🚫 Hidden Rides (At Bottom)</span>
               <span class="setting-val-display" id="settingsIgnoredCount">0</span>
             </div>
-            <p class="setting-subtext">Rides you mark with 🚫 are hidden from view and excluded from alerts.</p>
-            <button class="btn btn-sm btn-outline" id="unignoreAllBtn" style="margin-top: 10px;">Restore All Ignored Rides</button>
+            <p class="setting-subtext">Rides you mark with 🚫 are moved to the bottom of the list and excluded from alerts.</p>
+            <button class="btn btn-sm btn-outline" id="unignoreAllBtn" style="margin-top: 10px;">Restore All Hidden Rides</button>
           </div>
 
           <!-- iPhone PWA Installation Guide -->
@@ -473,7 +473,7 @@
           </div>
 
           <div class="app-version-footer">
-            <span>RopeDrop v2.0 • Disney World Wait Times & Hopper</span>
+            <span>RopeDrop v2.1 • Disney World Wait Times & Hopper</span>
           </div>
         </div>
       </div>
@@ -535,7 +535,7 @@
 
   </div>
 
-  <!-- Scripts (Cache-busted v2.0) -->
-  <script src="app.js?v=2.0"></script>
+  <!-- Scripts (Cache-busted v2.1) -->
+  <script src="app.js?v=2.1"></script>
 </body>
 </html>

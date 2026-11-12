@@ -1605,3 +1605,16 @@ input:checked + .slider:before {
   color: #fde68a;
   animation: slideDownAlert 0.3s ease;
 }
+
+/* Enhanced Bottom Hidden Ride Styling */
+.ride-card.is-ignored {
+  opacity: 0.55;
+  border: 1px dashed rgba(239, 68, 68, 0.35);
+  background: rgba(15, 23, 42, 0.55);
+  filter: grayscale(0.2);
+}
+
+.ride-card.is-ignored:active, .ride-card.is-ignored:hover {
+  opacity: 0.9;
+  filter: none;
+}
