@@ -1,4 +1,6 @@
-const CACHE_NAME = 'ropedrop-v1.2';
+// RopeDrop Service Worker v2.0 - Network First Strategy
+const CACHE_NAME = 'ropedrop-v2.0';
+
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -11,22 +13,24 @@ const STATIC_ASSETS = [
   './icon-512.png'
 ];
 
-// Install: Cache app shell
+// Install: Cache core assets and activate immediately
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
-// Activate: Clean up old caches
+// Activate: Delete all previous caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('[SW] Deleting stale cache:', key);
             return caches.delete(key);
           }
         })
@@ -35,47 +39,25 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Strategy depending on request type
+// Fetch: NETWORK FIRST for everything, fallback to cache if offline
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
 
-  // For live API requests, try network first, falling back to cache if offline
-  if (url.origin === 'https://api.themeparks.wiki') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone and cache the live response for offline viewing
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
-    );
-    return;
-  }
-
-  // For local static assets, use Cache First with Stale While Revalidate
+  // Network First
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
+    fetch(req)
+      .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
+            cache.put(req, clone);
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // Network failed, nothing extra
-      });
-
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => {
+        // If offline, retrieve from cache
+        return caches.match(req);
+      })
   );
 });

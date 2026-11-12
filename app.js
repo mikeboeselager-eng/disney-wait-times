@@ -1,6 +1,6 @@
 /**
- * ROPEDROP - DISNEY WORLD WAIT TIMES & PARK HOPPER PWA
- * Act as a Disney World Expert: Live wait times, priority alerts, land mapping, park hopping, and permanent persistence.
+ * ROPEDROP v2.0 - DISNEY WORLD WAIT TIMES & PARK HOPPER PWA
+ * Rock-solid permanent persistence, in-memory object resolution, and dual-layer storage.
  */
 
 // =============================================================================
@@ -54,10 +54,6 @@ const PARKS = {
   }
 };
 
-// =============================================================================
-// 2. DISNEY EXPERT LAND MAPPING & INSIDER TIPS
-// =============================================================================
-
 const LAND_RULES = [
   // Magic Kingdom
   { match: /mine train|peter pan|pooh|dumbo|under the sea|small world|tea party|carrousel|barnstormer|philharmagic|fairytale hall|ariel/i, land: 'Fantasyland' },
@@ -91,8 +87,8 @@ const LAND_RULES = [
 
 const EXPERT_TIPS = {
   'seven dwarfs mine train': '💡 Disney Expert Tip: Peak waits are 11 AM - 4 PM. Rope drop this or hop in line 10 minutes before park close for the shortest queue!',
-  'space mountain': '💡 Disney Expert Tip: Waits drop significantly right after the Happily Ever After fireworks display. Great night ride!',
-  'tron lightcycle / run': '💡 Disney Expert Tip: Keep an eye out for evening standby drops. Night rides are unmatched when the canopy is illuminated.',
+  'space mountain': '💡 Disney Expert Tip: Waits drop significantly right after Happily Ever After fireworks. Incredible night ride!',
+  'tron lightcycle / run': '💡 Disney Expert Tip: Keep an eye out for evening standby drops. Night rides are unmatched when the canopy glows.',
   'haunted mansion': '💡 Disney Expert Tip: The queue moves very steadily. Ideal mid-afternoon attraction with shaded outdoor & cool indoor areas.',
   'pirates of the caribbean': '💡 Disney Expert Tip: Refreshingly air-conditioned! Waits usually bottom out during the 3 PM parade and after 8 PM.',
   'big thunder mountain railroad': '💡 Disney Expert Tip: "The Wildest Ride in the Wilderness" is twice as magical at night when Cinderella Castle is lit in the background.',
@@ -114,34 +110,23 @@ const THRILL_RIDE_KEYWORDS = [
   'flight of passage', 'slinky', 'dinosaur', 'smugglers', 'rise of the resistance', 'test track'
 ];
 
-// Normalize ride name for resilient string matching
-function normalizeRideName(name) {
+function cleanKey(name) {
   if (!name) return '';
-  return name.toLowerCase()
-    .replace(/[^a-z0-9]/g, '') // remove spaces, punctuation, special chars
-    .trim();
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 }
 
 // =============================================================================
-// 3. APPLICATION STATE & STORAGE ENGINE
+// 2. STATE & STORAGE ENGINE
 // =============================================================================
 
 const state = {
   currentParkId: '75ea578a-adc8-4116-a54d-dccb60765ef9', // Default: Magic Kingdom
-  
-  // Dual-Key Priority Tracking: Maps UUIDs & Normalized Names
-  mustDos: [],          // [{ id, name, parkId }]
-  secondaries: [],      // [{ id, name, parkId }]
-  ignored: [],          // [{ id, name, parkId }]
 
-  mustDoIds: new Set(),
-  mustDoNames: new Set(),
-
-  secondaryIds: new Set(),
-  secondaryNames: new Set(),
-
-  ignoredIds: new Set(),
-  ignoredNames: new Set(),
+  // Core Favorites Dictionaries keyed by cleanKey(name) AND id
+  // Structure: { [key]: { id, name, parkId } }
+  mustDos: {},
+  secondaries: {},
+  ignored: {},
 
   alertThreshold: 20,       // minutes
   soundEnabled: true,
@@ -151,7 +136,8 @@ const state = {
   // Data caches
   parkData: {},             // parkId -> enriched attractions array
   parkMeta: {},             // parkId -> { avgWait, openCount, walkonCount, lastUpdated }
-  
+  allAttractionsMap: {},    // id -> attraction object
+
   // UI filter state
   searchQuery: '',
   selectedFilter: 'all',    // all, must-do, secondary, under20, thrill, family, ignored, down
@@ -167,75 +153,214 @@ const state = {
   pendingSharedPlan: null
 };
 
-// Storage Keys
 const STORAGE_KEYS = {
+  FAVS_V2: 'ropedrop_favorites_v2',
   PARK_ID: 'ropedrop_current_park_id',
-  MUST_DOS: 'ropedrop_must_dos_v2',
-  SECONDARIES: 'ropedrop_secondaries_v2',
-  IGNORED: 'ropedrop_ignored_v2',
   THRESHOLD: 'ropedrop_alert_threshold',
   SOUND: 'ropedrop_sound_enabled',
   NOTIFICATIONS: 'ropedrop_notifications_enabled',
   REFRESH_MINS: 'ropedrop_refresh_interval'
 };
 
-// Legacy keys to auto-migrate from previous versions
-const LEGACY_STORAGE_KEYS = {
-  MUST_DOS: ['ropedrop_must_dos', 'mousehop_must_dos', 'disney_must_dos', 'disney_favorites'],
-  SECONDARIES: ['ropedrop_secondaries', 'mousehop_secondaries', 'disney_secondaries'],
-  IGNORED: ['ropedrop_ignored', 'mousehop_ignored', 'disney_ignored']
-};
-
 // =============================================================================
-// 4. INDEXEDDB DUAL-LAYER STORAGE (iOS SAFARI RESILIENCE)
+// 3. PERSISTENCE ENGINE (LOCALSTORAGE + COOKIE + INDEXEDDB)
 // =============================================================================
 
-const DB_NAME = 'ropedrop_storage_db';
-const DB_VERSION = 1;
-const DB_STORE = 'app_preferences';
+function savePriorities() {
+  try {
+    const payload = {
+      mustDos: state.mustDos,
+      secondaries: state.secondaries,
+      ignored: state.ignored,
+      parkId: state.currentParkId,
+      threshold: state.alertThreshold
+    };
 
-function openIndexedDb() {
-  return new Promise((resolve, reject) => {
-    if (!('indexedDB' in window)) {
-      resolve(null);
-      return;
+    const json = JSON.stringify(payload);
+
+    // 1. Primary LocalStorage
+    localStorage.setItem(STORAGE_KEYS.FAVS_V2, json);
+    localStorage.setItem(STORAGE_KEYS.PARK_ID, state.currentParkId);
+
+    // 2. Backup to Cookie (expires in 1 year, survives Safari storage clears)
+    const expires = new Date(Date.now() + 365*24*60*60*1000).toUTCString();
+    document.cookie = `ropedrop_backup=${encodeURIComponent(json)}; expires=${expires}; path=/; SameSite=Lax`;
+
+    // 3. Backup to IndexedDB
+    saveToIndexedDb('favorites', payload);
+
+    updateSettingsUI();
+  } catch (err) {
+    console.warn('Could not save priorities:', err);
+  }
+}
+
+function loadStoredPreferences() {
+  try {
+    // 1. Try primary storage
+    let raw = localStorage.getItem(STORAGE_KEYS.FAVS_V2);
+
+    // 2. If not found, try Cookie backup
+    if (!raw) {
+      const match = document.cookie.match(/ropedrop_backup=([^;]+)/);
+      if (match) {
+        raw = decodeURIComponent(match[1]);
+      }
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
+
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      state.mustDos = parsed.mustDos || {};
+      state.secondaries = parsed.secondaries || {};
+      state.ignored = parsed.ignored || {};
+      if (parsed.parkId && PARKS[parsed.parkId]) {
+        state.currentParkId = parsed.parkId;
+      }
+    } else {
+      // 3. Migrate any legacy keys from previous sessions
+      migrateLegacyStorage();
+    }
+
+    // Load settings
+    const savedPark = localStorage.getItem(STORAGE_KEYS.PARK_ID);
+    if (savedPark && PARKS[savedPark]) state.currentParkId = savedPark;
+
+    const savedThreshold = localStorage.getItem(STORAGE_KEYS.THRESHOLD);
+    if (savedThreshold) state.alertThreshold = parseInt(savedThreshold, 10) || 20;
+
+    const savedSound = localStorage.getItem(STORAGE_KEYS.SOUND);
+    if (savedSound !== null) state.soundEnabled = savedSound === 'true';
+
+    const savedNotifs = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    if (savedNotifs !== null) state.notificationsEnabled = savedNotifs === 'true';
+
+    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_MINS);
+    if (savedRefresh) state.autoRefreshMinutes = parseInt(savedRefresh, 10) || 5;
+
+    state.secondsRemaining = state.autoRefreshMinutes * 60;
+  } catch (err) {
+    console.warn('Error loading preferences:', err);
+  }
+
+  updateSettingsUI();
+}
+
+function migrateLegacyStorage() {
+  const legacyKeys = [
+    'ropedrop_must_dos_v2', 'ropedrop_must_dos', 'mousehop_must_dos', 'disney_must_dos', 'disney_favorites'
+  ];
+
+  for (const k of legacyKeys) {
+    const val = localStorage.getItem(k);
+    if (val) {
+      try {
+        const items = JSON.parse(val);
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            if (typeof item === 'string') {
+              state.mustDos[item] = { id: item, name: '' };
+            } else if (item && typeof item === 'object') {
+              const key = cleanKey(item.name) || item.id;
+              state.mustDos[key] = { id: item.id || '', name: item.name || '' };
+            }
+          });
+        }
+        break;
+      } catch (e) {}
+    }
+  }
+
+  const legacySecKeys = ['ropedrop_secondaries_v2', 'ropedrop_secondaries', 'mousehop_secondaries', 'disney_secondaries'];
+  for (const k of legacySecKeys) {
+    const val = localStorage.getItem(k);
+    if (val) {
+      try {
+        const items = JSON.parse(val);
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            if (typeof item === 'string') {
+              state.secondaries[item] = { id: item, name: '' };
+            } else if (item && typeof item === 'object') {
+              const key = cleanKey(item.name) || item.id;
+              state.secondaries[key] = { id: item.id || '', name: item.name || '' };
+            }
+          });
+        }
+        break;
+      } catch (e) {}
+    }
+  }
+
+  savePriorities();
+}
+
+// IndexedDB Helper
+function openDb() {
+  return new Promise(resolve => {
+    if (!('indexedDB' in window)) return resolve(null);
+    const req = indexedDB.open('ropedrop_db', 2);
+    req.onupgradeneeded = e => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) {
-        db.createObjectStore(DB_STORE);
+      if (!db.objectStoreNames.contains('store')) {
+        db.createObjectStore('store');
       }
     };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => resolve(null);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = () => resolve(null);
   });
 }
 
-async function saveToIndexedDb(key, value) {
+async function saveToIndexedDb(key, val) {
   try {
-    const db = await openIndexedDb();
+    const db = await openDb();
     if (!db) return;
-    const tx = db.transaction(DB_STORE, 'readwrite');
-    tx.objectStore(DB_STORE).put(value, key);
-  } catch (err) {
-    // Non-critical background save failure
-  }
+    const tx = db.transaction('store', 'readwrite');
+    tx.objectStore('store').put(val, key);
+  } catch (e) {}
 }
 
 async function getFromIndexedDb(key) {
   try {
-    const db = await openIndexedDb();
+    const db = await openDb();
     if (!db) return null;
-    return new Promise((resolve) => {
-      const tx = db.transaction(DB_STORE, 'readonly');
-      const req = tx.objectStore(DB_STORE).get(key);
+    return new Promise(resolve => {
+      const tx = db.transaction('store', 'readonly');
+      const req = tx.objectStore('store').get(key);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
     });
-  } catch (err) {
+  } catch (e) {
     return null;
   }
+}
+
+// =============================================================================
+// 4. MATCHING HELPERS
+// =============================================================================
+
+function isRideMustDo(item) {
+  if (!item) return false;
+  const k = cleanKey(item.name);
+  return Boolean((k && state.mustDos[k]) || (item.id && state.mustDos[item.id]));
+}
+
+function isRideSecondary(item) {
+  if (!item) return false;
+  const k = cleanKey(item.name);
+  return Boolean((k && state.secondaries[k]) || (item.id && state.secondaries[item.id]));
+}
+
+function isRideIgnored(item) {
+  if (!item) return false;
+  const k = cleanKey(item.name);
+  return Boolean((k && state.ignored[k]) || (item.id && state.ignored[item.id]));
+}
+
+function getPriorityLevel(item) {
+  if (isRideIgnored(item)) return -1;
+  if (isRideMustDo(item)) return 2;
+  if (isRideSecondary(item)) return 1;
+  return 0;
 }
 
 // =============================================================================
@@ -244,7 +369,19 @@ async function getFromIndexedDb(key) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   loadStoredPreferences();
-  await checkIndexedDbFallback();
+
+  // Async verify against IndexedDB if localStorage was somehow blank
+  const mustCount = Object.keys(state.mustDos).length;
+  if (mustCount === 0) {
+    const idbData = await getFromIndexedDb('favorites');
+    if (idbData && idbData.mustDos && Object.keys(idbData.mustDos).length > 0) {
+      state.mustDos = idbData.mustDos;
+      state.secondaries = idbData.secondaries || {};
+      state.ignored = idbData.ignored || {};
+      savePriorities();
+    }
+  }
+
   checkSharedPlanUrl();
   initServiceWorker();
   initEventListeners();
@@ -253,193 +390,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   fetchParkData(state.currentParkId);
   fetchAllParksForHopper();
 });
-
-function loadStoredPreferences() {
-  try {
-    const savedPark = localStorage.getItem(STORAGE_KEYS.PARK_ID) || localStorage.getItem('mousehop_current_park_id') || localStorage.getItem('disney_current_park_id');
-    if (savedPark && PARKS[savedPark]) {
-      state.currentParkId = savedPark;
-    }
-
-    // Load Must-Dos with legacy fallback
-    let rawMustDos = localStorage.getItem(STORAGE_KEYS.MUST_DOS);
-    if (!rawMustDos) {
-      for (const k of LEGACY_STORAGE_KEYS.MUST_DOS) {
-        const val = localStorage.getItem(k);
-        if (val) { rawMustDos = val; break; }
-      }
-    }
-    if (rawMustDos) {
-      parseAndSetFavorites('mustDos', JSON.parse(rawMustDos));
-    }
-
-    // Load Backups with legacy fallback
-    let rawSec = localStorage.getItem(STORAGE_KEYS.SECONDARIES);
-    if (!rawSec) {
-      for (const k of LEGACY_STORAGE_KEYS.SECONDARIES) {
-        const val = localStorage.getItem(k);
-        if (val) { rawSec = val; break; }
-      }
-    }
-    if (rawSec) {
-      parseAndSetFavorites('secondaries', JSON.parse(rawSec));
-    }
-
-    // Load Ignored with legacy fallback
-    let rawIgnored = localStorage.getItem(STORAGE_KEYS.IGNORED);
-    if (!rawIgnored) {
-      for (const k of LEGACY_STORAGE_KEYS.IGNORED) {
-        const val = localStorage.getItem(k);
-        if (val) { rawIgnored = val; break; }
-      }
-    }
-    if (rawIgnored) {
-      parseAndSetFavorites('ignored', JSON.parse(rawIgnored));
-    }
-
-    // Load settings
-    const savedThreshold = localStorage.getItem(STORAGE_KEYS.THRESHOLD) || localStorage.getItem('mousehop_alert_threshold') || localStorage.getItem('disney_alert_threshold');
-    if (savedThreshold) state.alertThreshold = parseInt(savedThreshold, 10) || 20;
-
-    const savedSound = localStorage.getItem(STORAGE_KEYS.SOUND) || localStorage.getItem('mousehop_sound_enabled') || localStorage.getItem('disney_sound_enabled');
-    if (savedSound !== null) state.soundEnabled = savedSound === 'true';
-
-    const savedNotifs = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || localStorage.getItem('mousehop_notifications_enabled') || localStorage.getItem('disney_notifications_enabled');
-    if (savedNotifs !== null) state.notificationsEnabled = savedNotifs === 'true';
-
-    const savedRefresh = localStorage.getItem(STORAGE_KEYS.REFRESH_MINS) || localStorage.getItem('mousehop_refresh_interval') || localStorage.getItem('disney_refresh_interval');
-    if (savedRefresh) state.autoRefreshMinutes = parseInt(savedRefresh, 10) || 5;
-
-    state.secondsRemaining = state.autoRefreshMinutes * 60;
-  } catch (err) {
-    console.warn('Error loading preferences from localStorage:', err);
-  }
-
-  updateSettingsUI();
-}
-
-// Fallback check against IndexedDB if localStorage was cleared by iOS
-async function checkIndexedDbFallback() {
-  if (state.mustDos.length === 0) {
-    const idbMust = await getFromIndexedDb(STORAGE_KEYS.MUST_DOS);
-    if (idbMust && idbMust.length > 0) {
-      parseAndSetFavorites('mustDos', idbMust);
-    }
-  }
-  if (state.secondaries.length === 0) {
-    const idbSec = await getFromIndexedDb(STORAGE_KEYS.SECONDARIES);
-    if (idbSec && idbSec.length > 0) {
-      parseAndSetFavorites('secondaries', idbSec);
-    }
-  }
-  if (state.ignored.length === 0) {
-    const idbIgn = await getFromIndexedDb(STORAGE_KEYS.IGNORED);
-    if (idbIgn && idbIgn.length > 0) {
-      parseAndSetFavorites('ignored', idbIgn);
-    }
-  }
-  rebuildIndexSets();
-}
-
-function parseAndSetFavorites(type, items) {
-  if (!Array.isArray(items)) return;
-  
-  const targetArr = [];
-  items.forEach(item => {
-    if (typeof item === 'string') {
-      // Legacy ID string
-      targetArr.push({ id: item, name: '', parkId: '' });
-    } else if (typeof item === 'object' && item !== null) {
-      // Upgraded object { id, name, parkId }
-      targetArr.push({
-        id: item.id || '',
-        name: item.name || '',
-        parkId: item.parkId || ''
-      });
-    }
-  });
-
-  state[type] = targetArr;
-  rebuildIndexSets();
-}
-
-function rebuildIndexSets() {
-  state.mustDoIds.clear();
-  state.mustDoNames.clear();
-  state.mustDos.forEach(item => {
-    if (item.id) state.mustDoIds.add(item.id);
-    if (item.name) state.mustDoNames.add(normalizeRideName(item.name));
-  });
-
-  state.secondaryIds.clear();
-  state.secondaryNames.clear();
-  state.secondaries.forEach(item => {
-    if (item.id) state.secondaryIds.add(item.id);
-    if (item.name) state.secondaryNames.add(normalizeRideName(item.name));
-  });
-
-  state.ignoredIds.clear();
-  state.ignoredNames.clear();
-  state.ignored.forEach(item => {
-    if (item.id) state.ignoredIds.add(item.id);
-    if (item.name) state.ignoredNames.add(normalizeRideName(item.name));
-  });
-}
-
-function savePriorities() {
-  try {
-    rebuildIndexSets();
-
-    const mustJson = JSON.stringify(state.mustDos);
-    const secJson = JSON.stringify(state.secondaries);
-    const ignJson = JSON.stringify(state.ignored);
-
-    // Save to primary localStorage
-    localStorage.setItem(STORAGE_KEYS.MUST_DOS, mustJson);
-    localStorage.setItem(STORAGE_KEYS.SECONDARIES, secJson);
-    localStorage.setItem(STORAGE_KEYS.IGNORED, ignJson);
-    localStorage.setItem(STORAGE_KEYS.PARK_ID, state.currentParkId);
-
-    // Also mirror to legacy keys so switching versions never loses data
-    localStorage.setItem('mousehop_must_dos', mustJson);
-    localStorage.setItem('disney_must_dos', mustJson);
-
-    // Save to IndexedDB (asynchronous dual-layer backup)
-    saveToIndexedDb(STORAGE_KEYS.MUST_DOS, state.mustDos);
-    saveToIndexedDb(STORAGE_KEYS.SECONDARIES, state.secondaries);
-    saveToIndexedDb(STORAGE_KEYS.IGNORED, state.ignored);
-    saveToIndexedDb(STORAGE_KEYS.PARK_ID, state.currentParkId);
-  } catch (err) {
-    console.warn('Could not save priorities:', err);
-  }
-}
-
-function updateSettingsUI() {
-  const thresholdDisplay = document.getElementById('thresholdDisplay');
-  if (thresholdDisplay) thresholdDisplay.textContent = `${state.alertThreshold} min`;
-
-  document.querySelectorAll('.threshold-pill').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.val, 10) === state.alertThreshold);
-  });
-
-  document.querySelectorAll('.refresh-pill').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.dataset.min, 10) === state.autoRefreshMinutes);
-  });
-
-  const soundToggle = document.getElementById('soundToggle');
-  if (soundToggle) soundToggle.checked = state.soundEnabled;
-
-  const notifyToggle = document.getElementById('notifyToggle');
-  if (notifyToggle) notifyToggle.checked = state.notificationsEnabled;
-
-  const settingsIgnoredCount = document.getElementById('settingsIgnoredCount');
-  if (settingsIgnoredCount) settingsIgnoredCount.textContent = `${state.ignored.length} hidden`;
-
-  const storageSummaryText = document.getElementById('storageSummaryText');
-  if (storageSummaryText) {
-    storageSummaryText.textContent = `Active saved list: ${state.mustDos.length} Must-Dos, ${state.secondaries.length} Backups, and ${state.ignored.length} Ignored rides permanently preserved on this device.`;
-  }
-}
 
 function initTheme(parkId) {
   const park = PARKS[parkId] || PARKS['75ea578a-adc8-4116-a54d-dccb60765ef9'];
@@ -460,8 +410,10 @@ function initServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('Service Worker registered:', reg.scope))
-        .catch(err => console.log('Service Worker skipped:', err));
+        .then(reg => {
+          reg.update(); // Always check for fresh worker
+        })
+        .catch(err => console.log('SW registration error:', err));
     });
   }
 }
@@ -490,7 +442,7 @@ async function fetchParkData(parkId, isManual = false) {
     }
   } catch (err) {
     console.error('Error fetching live wait times:', err);
-    showToast('⚠️ Using cached times.');
+    showToast('⚠️ Using offline cached times.');
   } finally {
     state.isRefreshing = false;
     if (svg) svg.classList.remove('spinning');
@@ -508,21 +460,19 @@ function processParkData(parkId, rawData) {
 
   state.parkData[parkId] = attractions;
 
-  // Re-sync attraction names with saved IDs if any name was missing
+  // Cache in global map by ID
   attractions.forEach(a => {
-    const norm = normalizeRideName(a.name);
-    // If ID matches but name was blank in stored items, populate name
-    state.mustDos.forEach(m => {
-      if (m.id === a.id && !m.name) m.name = a.name;
-    });
-    state.secondaries.forEach(s => {
-      if (s.id === a.id && !s.name) s.name = a.name;
-    });
-    state.ignored.forEach(i => {
-      if (i.id === a.id && !i.name) i.name = a.name;
-    });
+    state.allAttractionsMap[a.id] = a;
+
+    // If ID was in legacy store, re-associate its name
+    const k = cleanKey(a.name);
+    if (state.mustDos[a.id] && !state.mustDos[k]) {
+      state.mustDos[k] = { id: a.id, name: a.name, parkId: a.parkId };
+    }
+    if (state.secondaries[a.id] && !state.secondaries[k]) {
+      state.secondaries[k] = { id: a.id, name: a.name, parkId: a.parkId };
+    }
   });
-  savePriorities();
 
   // Calculate stats (excluding ignored rides)
   const activeAttractions = attractions.filter(a => !isRideIgnored(a) && a.status === 'OPERATING' && a.waitTime !== null);
@@ -592,7 +542,6 @@ function enrichAttraction(item, parkId) {
   return {
     id: item.id,
     name: name,
-    normalizedName: normalizeRideName(name),
     entityType: item.entityType,
     status: item.status || 'CLOSED',
     waitTime: waitTime,
@@ -615,42 +564,14 @@ async function fetchAllParksForHopper() {
           const d = await res.json();
           processParkData(pid, d);
         }
-      } catch (e) {
-        // ignore background poll error
-      }
+      } catch (e) {}
     }
   }
   updateHopperCardsUI();
 }
 
 // =============================================================================
-// 7. MATCHING HELPERS (FAIL-PROOF DUAL KEY)
-// =============================================================================
-
-function isRideMustDo(item) {
-  if (!item) return false;
-  return state.mustDoIds.has(item.id) || state.mustDoNames.has(item.normalizedName || normalizeRideName(item.name));
-}
-
-function isRideSecondary(item) {
-  if (!item) return false;
-  return state.secondaryIds.has(item.id) || state.secondaryNames.has(item.normalizedName || normalizeRideName(item.name));
-}
-
-function isRideIgnored(item) {
-  if (!item) return false;
-  return state.ignoredIds.has(item.id) || state.ignoredNames.has(item.normalizedName || normalizeRideName(item.name));
-}
-
-function getPriorityLevel(item) {
-  if (isRideIgnored(item)) return -1;
-  if (isRideMustDo(item)) return 2;
-  if (isRideSecondary(item)) return 1;
-  return 0;
-}
-
-// =============================================================================
-// 8. RENDER FUNCTIONS
+// 7. RENDER FUNCTIONS
 // =============================================================================
 
 function renderStatsRibbon() {
@@ -709,9 +630,6 @@ function renderRidesList() {
   const container = document.getElementById('ridesContainer');
   const emptyState = document.getElementById('emptyState');
   const emptyDesc = document.getElementById('emptyDesc');
-  const otherParksNotice = document.getElementById('otherParksNotice');
-  const otherParksNoticeText = document.getElementById('otherParksNoticeText');
-  const switchOtherParkBtn = document.getElementById('switchOtherParkBtn');
   if (!container) return;
 
   const allAttractions = state.parkData[state.currentParkId] || [];
@@ -762,23 +680,6 @@ function renderRidesList() {
     }
   });
 
-  // Cross-Park Favorites Helper Notice
-  if (otherParksNotice) {
-    if ((state.selectedFilter === 'must-do' || state.selectedFilter === 'secondary') && filtered.length === 0) {
-      const otherParkWithFav = findOtherParkWithFavorites(state.selectedFilter);
-      if (otherParkWithFav) {
-        otherParksNotice.style.display = 'flex';
-        const label = state.selectedFilter === 'must-do' ? 'Must-Dos' : 'Backups';
-        otherParksNoticeText.innerHTML = `You have <strong>${otherParkWithFav.count} ${label}</strong> saved at <strong>${otherParkWithFav.name}</strong>!`;
-        switchOtherParkBtn.onclick = () => switchPark(otherParkWithFav.id);
-      } else {
-        otherParksNotice.style.display = 'none';
-      }
-    } else {
-      otherParksNotice.style.display = 'none';
-    }
-  }
-
   // Apply Sorting
   filtered.sort((a, b) => {
     if (state.selectedSort === 'priority') {
@@ -816,9 +717,9 @@ function renderRidesList() {
     if (emptyState) emptyState.style.display = 'flex';
     if (emptyDesc) {
       if (state.selectedFilter === 'must-do') {
-        emptyDesc.textContent = `No Must-Do rides saved for ${PARKS[state.currentParkId]?.name || 'this park'}. Tap the star on any ride to add it!`;
+        emptyDesc.textContent = `No Must-Do rides saved in ${PARKS[state.currentParkId]?.name || 'this park'}. Tap the star on any ride to save it!`;
       } else if (state.selectedFilter === 'secondary') {
-        emptyDesc.textContent = `No Backup rides saved for ${PARKS[state.currentParkId]?.name || 'this park'}. Tap the star twice to add backups.`;
+        emptyDesc.textContent = `No Backup rides saved in ${PARKS[state.currentParkId]?.name || 'this park'}. Tap the star twice to add backups.`;
       } else {
         emptyDesc.textContent = 'Try clearing your filters or changing your search terms.';
       }
@@ -835,12 +736,13 @@ function renderRidesList() {
 
   container.innerHTML = cardsHtml;
 
+  // Attach priority & ignore listeners using direct memory lookup
   container.querySelectorAll('.priority-toggle-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const rideId = btn.dataset.rideId;
-      const rideName = btn.dataset.rideName;
-      cyclePriority(rideId, rideName);
+      const item = state.allAttractionsMap[rideId];
+      if (item) cyclePriority(item);
     });
   });
 
@@ -848,8 +750,8 @@ function renderRidesList() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const rideId = btn.dataset.rideId;
-      const rideName = btn.dataset.rideName;
-      toggleIgnore(rideId, rideName);
+      const item = state.allAttractionsMap[rideId];
+      if (item) toggleIgnore(item);
     });
   });
 
@@ -864,23 +766,6 @@ function renderRidesList() {
       }
     });
   });
-}
-
-function findOtherParkWithFavorites(filterType) {
-  for (const [pid, park] of Object.entries(PARKS)) {
-    if (pid === state.currentParkId) continue;
-    const attractions = state.parkData[pid] || [];
-    const count = attractions.filter(a => {
-      if (filterType === 'must-do') return isRideMustDo(a);
-      if (filterType === 'secondary') return isRideSecondary(a);
-      return false;
-    }).length;
-
-    if (count > 0) {
-      return { id: pid, name: park.name, count: count };
-    }
-  }
-  return null;
 }
 
 function buildRideCardHtml(item) {
@@ -965,8 +850,7 @@ function buildRideCardHtml(item) {
           <!-- Ignore / Never Ride Toggle -->
           <button class="ignore-toggle-btn ${isIgnored ? 'is-active' : ''}" 
                   data-ride-id="${item.id}" 
-                  data-ride-name="${escapeHtml(item.name)}" 
-                  title="${isIgnored ? 'Restore this ride' : 'Ignore / Never Ride this'}" 
+                  title="${isIgnored ? 'Restore this ride' : 'Never Ride this'}" 
                   aria-label="Never Ride">
             ${isIgnored ? '↩️' : '🚫'}
           </button>
@@ -974,7 +858,6 @@ function buildRideCardHtml(item) {
           <!-- Priority Star Toggle -->
           <button class="priority-toggle-btn ${priorityBtnClass}" 
                   data-ride-id="${item.id}" 
-                  data-ride-name="${escapeHtml(item.name)}" 
                   title="Cycle Priority (None -> Must-Do -> Backup)" 
                   aria-label="Toggle Priority">
             ${priorityIcon}
@@ -1032,94 +915,122 @@ function updateFilterCounts(attractions) {
 }
 
 // =============================================================================
-// 9. PRIORITY & IGNORE STATE MACHINE
+// 8. PRIORITY & IGNORE STATE MACHINE
 // =============================================================================
 
-function cyclePriority(rideId, rideName) {
-  const normName = normalizeRideName(rideName);
+function cyclePriority(item) {
+  if (!item) return;
+  const k = cleanKey(item.name);
+  const id = item.id;
+  const entry = { id: id, name: item.name, parkId: item.parkId };
 
-  // Helper to remove from list
-  const removeFrom = (list) => {
-    const idx = list.findIndex(x => (rideId && x.id === rideId) || (normName && normalizeRideName(x.name) === normName));
-    if (idx !== -1) list.splice(idx, 1);
-  };
+  // If currently ignored, remove from ignored
+  delete state.ignored[k];
+  if (id) delete state.ignored[id];
 
-  // If currently ignored, remove from ignored first
-  removeFrom(state.ignored);
+  const wasMustDo = isRideMustDo(item);
+  const wasSecondary = isRideSecondary(item);
 
-  const currentlyMustDo = state.mustDos.some(x => (rideId && x.id === rideId) || (normName && normalizeRideName(x.name) === normName));
-  const currentlySecondary = state.secondaries.some(x => (rideId && x.id === rideId) || (normName && normalizeRideName(x.name) === normName));
-
-  if (currentlyMustDo) {
+  if (wasMustDo) {
     // Must-Do -> Secondary
-    removeFrom(state.mustDos);
-    state.secondaries.push({ id: rideId, name: rideName, parkId: state.currentParkId });
-    showToast('◆ Moved to Backup Priority');
-  } else if (currentlySecondary) {
+    delete state.mustDos[k];
+    if (id) delete state.mustDos[id];
+
+    state.secondaries[k] = entry;
+    showToast(`◆ "${item.name}" moved to Backup`);
+  } else if (wasSecondary) {
     // Secondary -> None
-    removeFrom(state.secondaries);
-    showToast('Cleared from Priorities');
+    delete state.secondaries[k];
+    if (id) delete state.secondaries[id];
+    showToast(`Cleared "${item.name}" from priorities`);
   } else {
     // None -> Must-Do
-    state.mustDos.push({ id: rideId, name: rideName, parkId: state.currentParkId });
-    showToast('★ Added to Must-Do!');
+    state.mustDos[k] = entry;
+    showToast(`★ "${item.name}" saved to Must-Do!`);
   }
 
   savePriorities();
   renderRidesList();
   checkPriorityAlerts();
-  updateSettingsUI();
 }
 
-function toggleIgnore(rideId, rideName) {
-  const normName = normalizeRideName(rideName);
+function toggleIgnore(item) {
+  if (!item) return;
+  const k = cleanKey(item.name);
+  const id = item.id;
+  const entry = { id: id, name: item.name, parkId: item.parkId };
 
-  const removeFrom = (list) => {
-    const idx = list.findIndex(x => (rideId && x.id === rideId) || (normName && normalizeRideName(x.name) === normName));
-    if (idx !== -1) list.splice(idx, 1);
-  };
+  const wasIgnored = isRideIgnored(item);
 
-  const currentlyIgnored = state.ignored.some(x => (rideId && x.id === rideId) || (normName && normalizeRideName(x.name) === normName));
-
-  if (currentlyIgnored) {
-    removeFrom(state.ignored);
-    showToast('Restored ride to list');
+  if (wasIgnored) {
+    delete state.ignored[k];
+    if (id) delete state.ignored[id];
+    showToast(`Restored "${item.name}"`);
   } else {
-    removeFrom(state.mustDos);
-    removeFrom(state.secondaries);
-    state.ignored.push({ id: rideId, name: rideName, parkId: state.currentParkId });
-    showToast('🚫 Ride ignored (Never Ride)');
+    delete state.mustDos[k];
+    if (id) delete state.mustDos[id];
+    delete state.secondaries[k];
+    if (id) delete state.secondaries[id];
+
+    state.ignored[k] = entry;
+    showToast(`🚫 "${item.name}" hidden (Never Ride)`);
   }
 
   savePriorities();
-  updateSettingsUI();
   renderRidesList();
   checkPriorityAlerts();
   renderStatsRibbon();
 }
 
 function unignoreAllRides() {
-  state.ignored = [];
+  state.ignored = {};
   savePriorities();
-  updateSettingsUI();
   renderRidesList();
   renderStatsRibbon();
   showToast('Restored all ignored rides');
 }
 
 function clearAllPriorities() {
-  state.mustDos = [];
-  state.secondaries = [];
-  state.ignored = [];
+  state.mustDos = {};
+  state.secondaries = {};
+  state.ignored = {};
   savePriorities();
-  updateSettingsUI();
   renderRidesList();
   checkPriorityAlerts();
   showToast('All priorities and ignored rides cleared.');
 }
 
+function updateSettingsUI() {
+  const thresholdDisplay = document.getElementById('thresholdDisplay');
+  if (thresholdDisplay) thresholdDisplay.textContent = `${state.alertThreshold} min`;
+
+  document.querySelectorAll('.threshold-pill').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val, 10) === state.alertThreshold);
+  });
+
+  document.querySelectorAll('.refresh-pill').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.min, 10) === state.autoRefreshMinutes);
+  });
+
+  const soundToggle = document.getElementById('soundToggle');
+  if (soundToggle) soundToggle.checked = state.soundEnabled;
+
+  const notifyToggle = document.getElementById('notifyToggle');
+  if (notifyToggle) notifyToggle.checked = state.notificationsEnabled;
+
+  const settingsIgnoredCount = document.getElementById('settingsIgnoredCount');
+  if (settingsIgnoredCount) settingsIgnoredCount.textContent = `${Object.keys(state.ignored).length} hidden`;
+
+  const storageSummaryText = document.getElementById('storageSummaryText');
+  if (storageSummaryText) {
+    const mCount = Object.keys(state.mustDos).length;
+    const sCount = Object.keys(state.secondaries).length;
+    storageSummaryText.textContent = `Saved permanently on this iPhone: ${mCount} Must-Dos, ${sCount} Backups.`;
+  }
+}
+
 // =============================================================================
-// 10. FAMILY SHARING & SYNC
+// 9. FAMILY SHARING & SYNC
 // =============================================================================
 
 function generateShareUrl() {
@@ -1146,13 +1057,15 @@ function checkSharedPlanUrl() {
     const decodedJson = decodeURIComponent(atob(rawBase64));
     const data = JSON.parse(decodedJson);
 
-    if (data && (Array.isArray(data.m) || Array.isArray(data.s))) {
+    if (data && (typeof data.m === 'object' || typeof data.s === 'object')) {
       state.pendingSharedPlan = data;
 
       const banner = document.getElementById('familyImportBanner');
       const summary = document.getElementById('familyImportSummary');
       if (banner && summary) {
-        summary.textContent = `Includes ${(data.m || []).length} Must-Dos, ${(data.s || []).length} Backups, and ${(data.i || []).length} Ignored rides.`;
+        const mCount = Object.keys(data.m || {}).length;
+        const sCount = Object.keys(data.s || {}).length;
+        summary.textContent = `Includes ${mCount} Must-Dos and ${sCount} Backups.`;
         banner.style.display = 'flex';
       }
     }
@@ -1165,9 +1078,9 @@ function acceptSharedPlan() {
   if (!state.pendingSharedPlan) return;
 
   const data = state.pendingSharedPlan;
-  parseAndSetFavorites('mustDos', data.m || []);
-  parseAndSetFavorites('secondaries', data.s || []);
-  parseAndSetFavorites('ignored', data.i || []);
+  state.mustDos = data.m || {};
+  state.secondaries = data.s || {};
+  state.ignored = data.i || {};
 
   if (data.p && PARKS[data.p]) {
     state.currentParkId = data.p;
@@ -1175,7 +1088,6 @@ function acceptSharedPlan() {
   }
 
   savePriorities();
-  updateSettingsUI();
   renderRidesList();
   checkPriorityAlerts();
 
@@ -1190,18 +1102,19 @@ function openShareModal() {
   const shareBackupCount = document.getElementById('shareBackupCount');
   const shareIgnoredCount = document.getElementById('shareIgnoredCount');
 
-  if (shareMustDoCount) shareMustDoCount.textContent = state.mustDos.length;
-  if (shareBackupCount) shareBackupCount.textContent = state.secondaries.length;
-  if (shareIgnoredCount) shareIgnoredCount.textContent = state.ignored.length;
+  if (shareMustDoCount) shareMustDoCount.textContent = Object.keys(state.mustDos).length;
+  if (shareBackupCount) shareBackupCount.textContent = Object.keys(state.secondaries).length;
+  if (shareIgnoredCount) shareIgnoredCount.textContent = Object.keys(state.ignored).length;
 
   document.getElementById('shareModal').style.display = 'flex';
 }
 
 async function sharePlanNative() {
   const shareUrl = generateShareUrl();
+  const count = Object.keys(state.mustDos).length;
   const shareData = {
     title: 'Our Disney World Touring Plan (RopeDrop)',
-    text: `Here are our Disney World Must-Dos (${state.mustDos.length}) & Backup rides for our trip! Open in Safari on your iPhone to save:`,
+    text: `Here are our Disney World Must-Dos (${count}) & Backup rides for our trip! Open in Safari on your iPhone to save:`,
     url: shareUrl
   };
 
@@ -1210,9 +1123,7 @@ async function sharePlanNative() {
       await navigator.share(shareData);
       closeModals();
       return;
-    } catch (e) {
-      // User cancelled
-    }
+    } catch (e) {}
   }
 
   copyShareUrlToClipboard(shareUrl);
@@ -1231,7 +1142,7 @@ function copyShareUrlToClipboard(url) {
 }
 
 // =============================================================================
-// 11. SHORT WAIT OPPORTUNITY ALERT ENGINE (≤ 20 min)
+// 10. SHORT WAIT OPPORTUNITY ALERT ENGINE (≤ 20 min)
 // =============================================================================
 
 function checkPriorityAlerts() {
@@ -1298,18 +1209,10 @@ function checkPriorityAlerts() {
   });
 
   if (hasNewAlert) {
-    if (state.soundEnabled) {
-      playDisneyChime();
-    }
-    if (state.notificationsEnabled) {
-      sendWebNotification(qualifyingRides);
-    }
+    if (state.soundEnabled) playDisneyChime();
+    if (state.notificationsEnabled) sendWebNotification(qualifyingRides);
   }
 }
-
-// =============================================================================
-// 12. WEB AUDIO API SYNTHESIZER: DISNEY MAGICAL CHIME
-// =============================================================================
 
 function playDisneyChime() {
   try {
@@ -1339,9 +1242,7 @@ function playDisneyChime() {
       osc.start(now + delays[i]);
       osc.stop(now + delays[i] + 0.85);
     });
-  } catch (err) {
-    console.warn('AudioContext error:', err);
-  }
+  } catch (err) {}
 }
 
 function sendWebNotification(rides) {
@@ -1357,7 +1258,7 @@ function sendWebNotification(rides) {
 }
 
 // =============================================================================
-// 13. AUTO-REFRESH TIMER & VISIBILITY HANDLER
+// 11. AUTO-REFRESH TIMER & VISIBILITY
 // =============================================================================
 
 function startAutoRefreshTimer() {
@@ -1399,7 +1300,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // =============================================================================
-// 14. PARK HOPPER COMPARISON OVERVIEW
+// 12. PARK HOPPER COMPARISON OVERVIEW
 // =============================================================================
 
 function updateHopperCardsUI() {
@@ -1456,7 +1357,7 @@ function switchPark(parkId) {
 }
 
 // =============================================================================
-// 15. EVENT LISTENERS & MODAL CONTROLS
+// 13. EVENT LISTENERS & MODAL CONTROLS
 // =============================================================================
 
 function initEventListeners() {
@@ -1489,7 +1390,6 @@ function initEventListeners() {
     });
   });
 
-  // Hopper Modal
   const openHopperBtn = document.getElementById('openHopperBtn');
   if (openHopperBtn) {
     openHopperBtn.addEventListener('click', () => {

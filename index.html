@@ -12,13 +12,13 @@
   <title>RopeDrop • Disney World Wait Times & Hopper</title>
 
   <!-- PWA Manifest & Icons -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json?v=2.0">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
-  <!-- Stylesheet -->
-  <link rel="stylesheet" href="app.css">
+  <!-- Stylesheet (Cache-Busted v2.0) -->
+  <link rel="stylesheet" href="app.css?v=2.0">
 </head>
 <body class="theme-mk">
   <div id="app" class="app-container">
@@ -206,17 +206,11 @@
 
       <!-- Priority Legend / Guide Pill -->
       <div class="priority-guide-bar">
-        <span class="guide-title">Priorities:</span>
+        <span class="guide-title">Favorites:</span>
         <span class="guide-item"><span class="gem-star gold">★</span> Must-Do</span>
         <span class="guide-item"><span class="gem-star cyan">◆</span> Backup</span>
         <span class="guide-item"><span class="gem-star muted">🚫</span> Never Ride</span>
-        <span class="guide-hint">All choices stay saved on your phone</span>
-      </div>
-
-      <!-- Other Parks Favorites Notice (shown if current park has 0 favorites but other parks do) -->
-      <div class="other-parks-notice" id="otherParksNotice" style="display: none;">
-        <span id="otherParksNoticeText">You have saved favorites in other parks!</span>
-        <button class="btn btn-sm btn-gold" id="switchOtherParkBtn">View Favorites</button>
+        <span class="guide-hint">Tap star on any ride to save</span>
       </div>
 
       <!-- Live Rides List Container -->
@@ -377,7 +371,7 @@
               <span class="setting-val-display" style="color: #34d399;">● Permanently Active</span>
             </div>
             <p class="setting-subtext" id="storageSummaryText">
-              Your selected Must-Dos, Backups, and Ignored rides are saved permanently on this iPhone using LocalStorage + IndexedDB. Closing the app or restarting your phone will not lose them.
+              Saved favorites are stored on this device. Closing or restarting the app preserves them.
             </p>
           </div>
 
@@ -479,7 +473,7 @@
           </div>
 
           <div class="app-version-footer">
-            <span>RopeDrop v1.2 • Disney World Wait Times & Hopper</span>
+            <span>RopeDrop v2.0 • Disney World Wait Times & Hopper</span>
           </div>
         </div>
       </div>
@@ -541,7 +535,7 @@
 
   </div>
 
-  <!-- Scripts -->
-  <script src="app.js"></script>
+  <!-- Scripts (Cache-busted v2.0) -->
+  <script src="app.js?v=2.0"></script>
 </body>
 </html>
