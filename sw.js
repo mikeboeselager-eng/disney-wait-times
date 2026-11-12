@@ -1,4 +1,4 @@
-const CACHE_NAME = 'disney-waits-v1.0';
+const CACHE_NAME = 'ropedrop-v1.2';
 const STATIC_ASSETS = [
   './',
   './index.html',
