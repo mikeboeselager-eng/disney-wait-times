@@ -1,13 +1,13 @@
 {
-  "name": "Disney World Wait Times & Hopper",
-  "short_name": "Disney Waits",
+  "name": "MouseHop - Disney World Wait Times & Hopper",
+  "short_name": "MouseHop",
   "description": "Live Disney World ride wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#070c18",
-  "theme_color": "#0c1329",
+  "theme_color": "#0c142c",
   "lang": "en",
   "icons": [
     {

@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Disney Waits">
-  <meta name="application-name" content="Disney Waits">
+  <meta name="apple-mobile-web-app-title" content="MouseHop">
+  <meta name="application-name" content="MouseHop">
   <meta name="theme-color" content="#0c142c">
-  <meta name="description" content="Live Disney World wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.">
-  <title>Disney World Wait Times & Insights</title>
+  <meta name="description" content="MouseHop - Live Disney World wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.">
+  <title>MouseHop • Disney World Wait Times & Hopper</title>
 
   <!-- PWA Manifest & Icons -->
   <link rel="manifest" href="manifest.json">
@@ -23,13 +23,26 @@
 <body class="theme-mk">
   <div id="app" class="app-container">
 
+    <!-- Family Plan Imported Banner (when opened with shared URL) -->
+    <div class="family-import-banner" id="familyImportBanner" style="display: none;">
+      <div class="f-banner-icon">👨‍👩‍👧‍👦</div>
+      <div class="f-banner-body">
+        <strong>Family Plan Shared With You!</strong>
+        <p id="familyImportSummary">Load this plan to save the same Must-Dos & Backups on your iPhone.</p>
+        <div class="f-banner-actions">
+          <button class="btn btn-sm btn-gold" id="acceptFamilyPlanBtn">Save To My Phone</button>
+          <button class="btn btn-sm btn-outline" id="declineFamilyPlanBtn">Keep My Own</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Top Safe Area Header -->
     <header class="app-header">
       <div class="header-main">
         <div class="park-identity" id="parkHeaderTitle">
           <div class="park-crest" id="parkCrest">🏰</div>
           <div class="park-meta">
-            <span class="park-tag">Walt Disney World®</span>
+            <span class="park-tag">MOUSEHOP • WDW</span>
             <div class="park-name-row" id="openParkSelectorBtn">
               <h1 class="park-name" id="currentParkName">Magic Kingdom</h1>
               <span class="chevron-down">▾</span>
@@ -56,9 +69,20 @@
             <span class="hopper-badge">HOP</span>
           </button>
 
+          <!-- Family Share Button -->
+          <button class="icon-btn" id="quickShareBtn" title="Share with Family" aria-label="Share">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+          </button>
+
           <!-- Settings Button -->
           <button class="icon-btn" id="openSettingsBtn" title="Settings & Alerts" aria-label="Settings">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3"></circle>
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
             </svg>
@@ -170,6 +194,7 @@
           <button class="chip chip-under20" data-filter="under20">⚡ &le; 20 min (<span id="count-under20">0</span>)</button>
           <button class="chip" data-filter="thrill">🎢 Thrills</button>
           <button class="chip" data-filter="family">👶 Family</button>
+          <button class="chip chip-ignored" data-filter="ignored">🚫 Ignored (<span id="count-ignored">0</span>)</button>
           <button class="chip" data-filter="down">⚠️ Down / Closed</button>
         </div>
 
@@ -181,10 +206,11 @@
 
       <!-- Priority Legend / Guide Pill -->
       <div class="priority-guide-bar">
-        <span class="guide-title">Favorites Priority:</span>
-        <span class="guide-item"><span class="gem-star gold">★</span> Must-Do (1st)</span>
-        <span class="guide-item"><span class="gem-star cyan">◆</span> Backup (2nd)</span>
-        <span class="guide-hint">Tap star on any ride to cycle priority</span>
+        <span class="guide-title">Favorites & Ignore:</span>
+        <span class="guide-item"><span class="gem-star gold">★</span> Must-Do</span>
+        <span class="guide-item"><span class="gem-star cyan">◆</span> Backup</span>
+        <span class="guide-item"><span class="gem-star muted">🚫</span> Never Ride</span>
+        <span class="guide-hint">Tap 🚫 to hide rides you will never ride</span>
       </div>
 
       <!-- Live Rides List Container -->
@@ -282,6 +308,49 @@
       </div>
     </div>
 
+    <!-- Family Sharing Sheet / Modal -->
+    <div class="modal-backdrop" id="shareModal" style="display: none;">
+      <div class="modal-sheet share-sheet">
+        <div class="modal-drag-handle"></div>
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title">👨‍👩‍👧‍👦 Share Plan with Family</h2>
+            <p class="modal-desc">Send your Must-Dos, Backups & Ignored rides to your family</p>
+          </div>
+          <button class="modal-close-btn" id="closeShareModalBtn">&times;</button>
+        </div>
+
+        <div class="share-content">
+          <div class="share-summary-box">
+            <div class="share-stat-badge">
+              <strong id="shareMustDoCount">0</strong>
+              <span>★ Must-Dos</span>
+            </div>
+            <div class="share-stat-badge">
+              <strong id="shareBackupCount">0</strong>
+              <span>◆ Backups</span>
+            </div>
+            <div class="share-stat-badge">
+              <strong id="shareIgnoredCount">0</strong>
+              <span>🚫 Ignored</span>
+            </div>
+          </div>
+
+          <p class="setting-subtext" style="margin-bottom: 12px;">
+            When family members open this link on their iPhone, your plan will be saved directly into their app. They can keep it synced or customize their own favorites!
+          </p>
+
+          <button class="btn btn-gold btn-block" id="nativeShareBtn" style="margin-bottom: 10px;">
+            📤 Send via Messages / AirDrop / WhatsApp
+          </button>
+
+          <button class="btn btn-outline btn-block" id="copyShareLinkBtn">
+            📋 Copy Share Link
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Settings & Customization Modal -->
     <div class="modal-backdrop" id="settingsModal" style="display: none;">
       <div class="modal-sheet settings-sheet">
@@ -295,6 +364,16 @@
         </div>
 
         <div class="settings-content">
+          <!-- Family Sharing Row -->
+          <div class="setting-group" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(6, 182, 212, 0.08)); border-color: rgba(245, 158, 11, 0.3);">
+            <div class="setting-title-row">
+              <span class="setting-label">👨‍👩‍👧‍👦 Family Sharing</span>
+              <span class="setting-val-display" style="color: #fbbf24;">Permanent Storage</span>
+            </div>
+            <p class="setting-subtext">Each family member's phone permanently saves their own priorities. Tap below to share your current plan with them.</p>
+            <button class="btn btn-gold btn-sm" id="settingsOpenShareBtn" style="margin-top: 10px;">📤 Share Plan with Family Members</button>
+          </div>
+
           <!-- Alert Threshold -->
           <div class="setting-group">
             <div class="setting-title-row">
@@ -353,11 +432,21 @@
             </div>
           </div>
 
+          <!-- Ignored Rides Management -->
+          <div class="setting-group">
+            <div class="setting-title-row">
+              <span class="setting-label">🚫 Ignored Rides (Never Ride)</span>
+              <span class="setting-val-display" id="settingsIgnoredCount">0</span>
+            </div>
+            <p class="setting-subtext">Rides you mark with 🚫 are hidden from view and excluded from alerts.</p>
+            <button class="btn btn-sm btn-outline" id="unignoreAllBtn" style="margin-top: 10px;">Restore All Ignored Rides</button>
+          </div>
+
           <!-- iPhone PWA Installation Guide -->
           <div class="setting-group pwa-guide-box">
             <div class="pwa-guide-header">
               <span class="pwa-guide-icon">📱</span>
-              <strong>Add to your iPhone Home Screen</strong>
+              <strong>Add MouseHop to your iPhone Home Screen</strong>
             </div>
             <ol class="pwa-steps">
               <li>In Safari on iPhone, tap the <strong>Share button</strong> <span class="share-icon-pill">⎋</span> at the bottom.</li>
@@ -369,11 +458,11 @@
 
           <!-- Reset Priorities -->
           <div class="setting-group">
-            <button class="btn btn-danger-outline btn-block" id="resetPrioritiesBtn">Clear All Must-Do & Backup Favorites</button>
+            <button class="btn btn-danger-outline btn-block" id="resetPrioritiesBtn">Clear All Favorites (Reset App)</button>
           </div>
 
           <div class="app-version-footer">
-            <span>Disney Wait Times & Hopper v1.0 • Live API Powered</span>
+            <span>MouseHop v1.1 • Disney World Wait Times & Hopper</span>
           </div>
         </div>
       </div>
