@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="MouseHop">
-  <meta name="application-name" content="MouseHop">
+  <meta name="apple-mobile-web-app-title" content="RopeDrop">
+  <meta name="application-name" content="RopeDrop">
   <meta name="theme-color" content="#0c142c">
-  <meta name="description" content="MouseHop - Live Disney World wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.">
-  <title>MouseHop • Disney World Wait Times & Hopper</title>
+  <meta name="description" content="RopeDrop - Live Disney World wait times, Must-Do priority tracker, 20-minute drop alerts, and park hopping insights.">
+  <title>RopeDrop • Disney World Wait Times & Hopper</title>
 
   <!-- PWA Manifest & Icons -->
   <link rel="manifest" href="manifest.json">
@@ -42,7 +42,7 @@
         <div class="park-identity" id="parkHeaderTitle">
           <div class="park-crest" id="parkCrest">🏰</div>
           <div class="park-meta">
-            <span class="park-tag">MOUSEHOP • WDW</span>
+            <span class="park-tag">ROPEDROP • WDW</span>
             <div class="park-name-row" id="openParkSelectorBtn">
               <h1 class="park-name" id="currentParkName">Magic Kingdom</h1>
               <span class="chevron-down">▾</span>
@@ -189,8 +189,8 @@
         <!-- Filter Chips Bar -->
         <div class="filter-chips" id="filterChipsBar">
           <button class="chip active" data-filter="all">All (<span id="count-all">0</span>)</button>
-          <button class="chip chip-mustdo" data-filter="must-do">★ Must-Do (<span id="count-mustdo">0</span>)</button>
-          <button class="chip chip-secondary" data-filter="secondary">◆ Backup (<span id="count-secondary">0</span>)</button>
+          <button class="chip chip-mustdo" data-filter="must-do" id="chip-mustdo-btn">★ Must-Do (<span id="count-mustdo">0</span>)</button>
+          <button class="chip chip-secondary" data-filter="secondary" id="chip-secondary-btn">◆ Backup (<span id="count-secondary">0</span>)</button>
           <button class="chip chip-under20" data-filter="under20">⚡ &le; 20 min (<span id="count-under20">0</span>)</button>
           <button class="chip" data-filter="thrill">🎢 Thrills</button>
           <button class="chip" data-filter="family">👶 Family</button>
@@ -206,11 +206,17 @@
 
       <!-- Priority Legend / Guide Pill -->
       <div class="priority-guide-bar">
-        <span class="guide-title">Favorites & Ignore:</span>
+        <span class="guide-title">Priorities:</span>
         <span class="guide-item"><span class="gem-star gold">★</span> Must-Do</span>
         <span class="guide-item"><span class="gem-star cyan">◆</span> Backup</span>
         <span class="guide-item"><span class="gem-star muted">🚫</span> Never Ride</span>
-        <span class="guide-hint">Tap 🚫 to hide rides you will never ride</span>
+        <span class="guide-hint">All choices stay saved on your phone</span>
+      </div>
+
+      <!-- Other Parks Favorites Notice (shown if current park has 0 favorites but other parks do) -->
+      <div class="other-parks-notice" id="otherParksNotice" style="display: none;">
+        <span id="otherParksNoticeText">You have saved favorites in other parks!</span>
+        <button class="btn btn-sm btn-gold" id="switchOtherParkBtn">View Favorites</button>
       </div>
 
       <!-- Live Rides List Container -->
@@ -226,7 +232,7 @@
       <div class="empty-state" id="emptyState" style="display: none;">
         <div class="empty-emoji">🔍</div>
         <h3 class="empty-title">No attractions found</h3>
-        <p class="empty-desc">Try clearing your filters or changing your search terms.</p>
+        <p class="empty-desc" id="emptyDesc">Try clearing your filters or changing your search terms.</p>
         <button class="btn btn-outline" id="resetFiltersBtn">Reset All Filters</button>
       </div>
 
@@ -364,11 +370,22 @@
         </div>
 
         <div class="settings-content">
+          <!-- Permanent Storage Indicator -->
+          <div class="setting-group" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
+            <div class="setting-title-row">
+              <span class="setting-label">💾 Saved Priorities Status</span>
+              <span class="setting-val-display" style="color: #34d399;">● Permanently Active</span>
+            </div>
+            <p class="setting-subtext" id="storageSummaryText">
+              Your selected Must-Dos, Backups, and Ignored rides are saved permanently on this iPhone using LocalStorage + IndexedDB. Closing the app or restarting your phone will not lose them.
+            </p>
+          </div>
+
           <!-- Family Sharing Row -->
           <div class="setting-group" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(6, 182, 212, 0.08)); border-color: rgba(245, 158, 11, 0.3);">
             <div class="setting-title-row">
               <span class="setting-label">👨‍👩‍👧‍👦 Family Sharing</span>
-              <span class="setting-val-display" style="color: #fbbf24;">Permanent Storage</span>
+              <span class="setting-val-display" style="color: #fbbf24;">Sync Ready</span>
             </div>
             <p class="setting-subtext">Each family member's phone permanently saves their own priorities. Tap below to share your current plan with them.</p>
             <button class="btn btn-gold btn-sm" id="settingsOpenShareBtn" style="margin-top: 10px;">📤 Share Plan with Family Members</button>
@@ -446,7 +463,7 @@
           <div class="setting-group pwa-guide-box">
             <div class="pwa-guide-header">
               <span class="pwa-guide-icon">📱</span>
-              <strong>Add MouseHop to your iPhone Home Screen</strong>
+              <strong>Add RopeDrop to your iPhone Home Screen</strong>
             </div>
             <ol class="pwa-steps">
               <li>In Safari on iPhone, tap the <strong>Share button</strong> <span class="share-icon-pill">⎋</span> at the bottom.</li>
@@ -462,7 +479,7 @@
           </div>
 
           <div class="app-version-footer">
-            <span>MouseHop v1.1 • Disney World Wait Times & Hopper</span>
+            <span>RopeDrop v1.2 • Disney World Wait Times & Hopper</span>
           </div>
         </div>
       </div>
