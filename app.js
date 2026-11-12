@@ -1,5 +1,6 @@
 /**
- * ROPEDROP v2.1 - DISNEY WORLD WAIT TIMES & PARK HOPPER PWA
+ * ROPEDROP v2.2 - DISNEY WORLD WAIT TIMES & PARK HOPPER PWA
+ * Live Park Operating Hours, Early Entry & Special Events.
  * Tiered Hierarchy: Must-Dos (Top) -> Backups (Second) -> Regular -> Hidden (Bottom).
  */
 
@@ -134,7 +135,9 @@ const state = {
   
   parkData: {},             // parkId -> enriched attractions array
   parkMeta: {},             // parkId -> { avgWait, openCount, walkonCount, lastUpdated }
+  parkSchedules: {},        // parkId -> raw schedule items array
   allAttractionsMap: {},    // id -> attraction object
+  upcomingHoursOpen: false, // next 3 days accordion toggle
 
   searchQuery: '',
   selectedFilter: 'all',    // all, must-do, secondary, under20, thrill, family, ignored, down
@@ -425,24 +428,212 @@ async function fetchParkData(parkId, isManual = false) {
   if (svg) svg.classList.add('spinning');
 
   try {
-    const url = `https://api.themeparks.wiki/v1/entity/${parkId}/live`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const livePromise = fetch(`https://api.themeparks.wiki/v1/entity/${parkId}/live`).then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    });
+    const schedPromise = fetchParkSchedule(parkId);
+
+    const [data] = await Promise.all([livePromise, schedPromise]);
 
     processParkData(parkId, data);
     state.secondsRemaining = state.autoRefreshMinutes * 60;
 
     if (isManual) {
-      showToast('✨ Wait times refreshed!');
+      showToast('✨ Wait times & hours refreshed!');
     }
   } catch (err) {
-    console.error('Error fetching live wait times:', err);
+    console.error('Error fetching live wait times / schedule:', err);
     showToast('⚠️ Using cached times.');
   } finally {
     state.isRefreshing = false;
     if (svg) svg.classList.remove('spinning');
   }
+}
+
+async function fetchParkSchedule(parkId) {
+  try {
+    const url = `https://api.themeparks.wiki/v1/entity/${parkId}/schedule`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    state.parkSchedules[parkId] = data.schedule || [];
+    renderParkHours();
+    return state.parkSchedules[parkId];
+  } catch (err) {
+    console.warn(`Could not load schedule for park ${parkId}:`, err);
+    return null;
+  }
+}
+
+function getOrlandoDateString(offsetDays = 0) {
+  const d = new Date();
+  if (offsetDays !== 0) d.setDate(d.getDate() + offsetDays);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d);
+}
+
+function formatScheduleTime(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function renderParkHours() {
+  const hoursTimesEl = document.getElementById('parkOperatingHours');
+  const dateEl = document.getElementById('parkHoursDate');
+  const statusBadge = document.getElementById('parkStatusBadge');
+  const specialEl = document.getElementById('parkHoursSpecial');
+  if (!hoursTimesEl) return;
+
+  const parkId = state.currentParkId;
+  const schedule = state.parkSchedules[parkId];
+
+  // Update date headline
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  }
+
+  if (!schedule || schedule.length === 0) {
+    hoursTimesEl.textContent = 'Loading today\'s hours...';
+    if (statusBadge) {
+      statusBadge.textContent = 'Updating';
+      statusBadge.className = 'hours-status-badge status-open';
+    }
+    if (specialEl) specialEl.style.display = 'none';
+    return;
+  }
+
+  const today = getOrlandoDateString(0);
+  const todayItems = schedule.filter(item => item.date === today);
+  const operating = todayItems.find(item => item.type === 'OPERATING');
+  const earlyEntry = todayItems.find(item => item.type === 'TICKETED_EVENT' && item.description && item.description.toLowerCase().includes('early'));
+  const specialEvents = todayItems.filter(item => item.type === 'TICKETED_EVENT' && (!item.description || !item.description.toLowerCase().includes('early')));
+
+  if (operating && operating.openingTime && operating.closingTime) {
+    const openStr = formatScheduleTime(operating.openingTime);
+    const closeStr = formatScheduleTime(operating.closingTime);
+    hoursTimesEl.textContent = `${openStr} – ${closeStr}`;
+
+    // Live park open/close status logic
+    const now = Date.now();
+    const openMs = new Date(operating.openingTime).getTime();
+    const closeMs = new Date(operating.closingTime).getTime();
+    const minUntilClose = Math.round((closeMs - now) / 60000);
+    const minUntilOpen = Math.round((openMs - now) / 60000);
+
+    if (now >= openMs && now < closeMs) {
+      if (minUntilClose <= 60 && minUntilClose > 0) {
+        statusBadge.textContent = `Closes in ${minUntilClose}m`;
+        statusBadge.className = 'hours-status-badge status-closing';
+      } else {
+        statusBadge.textContent = '● Open';
+        statusBadge.className = 'hours-status-badge status-open';
+      }
+    } else if (now < openMs) {
+      if (minUntilOpen <= 60 && minUntilOpen > 0) {
+        statusBadge.textContent = `Opens in ${minUntilOpen}m`;
+        statusBadge.className = 'hours-status-badge status-opening';
+      } else {
+        statusBadge.textContent = `Opens ${openStr}`;
+        statusBadge.className = 'hours-status-badge status-opening';
+      }
+    } else {
+      statusBadge.textContent = 'Closed for Today';
+      statusBadge.className = 'hours-status-badge status-closed';
+    }
+  } else {
+    hoursTimesEl.textContent = 'Hours listed inside park';
+    if (statusBadge) {
+      statusBadge.textContent = 'Open Today';
+      statusBadge.className = 'hours-status-badge status-open';
+    }
+  }
+
+  // Early Entry & Special Events (Parties, After Hours, Extended Evenings)
+  if (specialEl) {
+    const pills = [];
+    if (earlyEntry && earlyEntry.openingTime && earlyEntry.closingTime) {
+      const eOpen = formatScheduleTime(earlyEntry.openingTime);
+      const eClose = formatScheduleTime(earlyEntry.closingTime);
+      pills.push(`<div class="hours-special-pill early-entry"><span>⚡ Early Entry (Resort Guests):</span> <strong>${eOpen} – ${eClose}</strong></div>`);
+    }
+
+    specialEvents.forEach(evt => {
+      const sName = evt.description || 'Special Ticketed Event';
+      const sOpen = formatScheduleTime(evt.openingTime);
+      const sClose = formatScheduleTime(evt.closingTime);
+      pills.push(`<div class="hours-special-pill event"><span>🎉 ${escapeHtml(sName)}:</span> <strong>${sOpen} – ${sClose}</strong></div>`);
+    });
+
+    if (pills.length > 0) {
+      specialEl.innerHTML = pills.join('');
+      specialEl.style.display = 'flex';
+    } else {
+      specialEl.style.display = 'none';
+    }
+  }
+
+  // Populate upcoming next 3 days
+  renderUpcomingDays(schedule, today);
+}
+
+function renderUpcomingDays(schedule, today) {
+  const container = document.getElementById('upcomingHoursList');
+  if (!container || !schedule) return;
+
+  const futureDates = [...new Set(schedule.map(s => s.date))].filter(d => d > today).slice(0, 3);
+  if (futureDates.length === 0) {
+    container.innerHTML = '<div class="setting-subtext">No upcoming schedule available.</div>';
+    return;
+  }
+
+  let html = '';
+  for (const dateStr of futureDates) {
+    const items = schedule.filter(s => s.date === dateStr);
+    const op = items.find(s => s.type === 'OPERATING');
+    const early = items.find(s => s.type === 'TICKETED_EVENT' && s.description && s.description.toLowerCase().includes('early'));
+    const special = items.find(s => s.type === 'TICKETED_EVENT' && (!s.description || !s.description.toLowerCase().includes('early')));
+
+    // Date object for day formatting
+    const dParts = dateStr.split('-');
+    const dateObj = new Date(dParts[0], dParts[1] - 1, dParts[2]);
+    const dayLabel = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    let hoursDisplay = 'Closed / TBD';
+    if (op && op.openingTime && op.closingTime) {
+      hoursDisplay = `${formatScheduleTime(op.openingTime)} – ${formatScheduleTime(op.closingTime)}`;
+    }
+
+    let extraPill = '';
+    if (special) {
+      extraPill = `<span class="upcoming-day-perk">🎉 ${escapeHtml(special.description || 'Special Event')}</span>`;
+    } else if (early) {
+      extraPill = `<span class="upcoming-day-perk">⚡ Early ${formatScheduleTime(early.openingTime)}</span>`;
+    }
+
+    html += `
+      <div class="upcoming-day-item">
+        <div class="upcoming-day-name">${dayLabel} ${extraPill}</div>
+        <div class="upcoming-day-hours">${hoursDisplay}</div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
 }
 
 function processParkData(parkId, rawData) {
@@ -553,14 +744,13 @@ function enrichAttraction(item, parkId) {
 
 async function fetchAllParksForHopper() {
   for (const pid of Object.keys(PARKS)) {
-    if (pid !== state.currentParkId) {
-      try {
-        const res = await fetch(`https://api.themeparks.wiki/v1/entity/${pid}/live`);
-        if (res.ok) {
-          const d = await res.json();
-          processParkData(pid, d);
-        }
-      } catch (e) {}
+    try {
+      const livePromise = fetch(`https://api.themeparks.wiki/v1/entity/${pid}/live`).then(r => r.ok ? r.json() : null);
+      const schedPromise = !state.parkSchedules[pid] ? fetchParkSchedule(pid) : Promise.resolve(state.parkSchedules[pid]);
+      const [liveData] = await Promise.all([livePromise, schedPromise]);
+      if (liveData) processParkData(pid, liveData);
+    } catch (e) {
+      console.warn('Error preloading hopper data:', e);
     }
   }
   updateHopperCardsUI();
@@ -1158,13 +1348,11 @@ function copyShareUrlToClipboard(url) {
 // 10. SHORT WAIT OPPORTUNITY ALERT ENGINE (≤ 20 min)
 // =============================================================================
 
-function checkPriorityAlerts() {
-  const banner = document.getElementById('priorityAlertBanner');
-  const alertList = document.getElementById('alertRidesList');
-  const alertCountBadge = document.getElementById('alertCountBadge');
-  const alertSubtitle = document.getElementById('alertSubtitle');
-  if (!banner || !alertList) return;
+// =============================================================================
+// 10. BACKGROUND PRIORITY ALERTS (Chime / Push Notification)
+// =============================================================================
 
+function checkPriorityAlerts() {
   const currentAttractions = state.parkData[state.currentParkId] || [];
 
   const qualifyingRides = currentAttractions.filter(item => {
@@ -1174,52 +1362,17 @@ function checkPriorityAlerts() {
   });
 
   if (qualifyingRides.length === 0) {
-    banner.style.display = 'none';
     state.lastAlertedIds.clear();
     return;
   }
 
-  banner.style.display = 'flex';
-  if (alertCountBadge) alertCountBadge.textContent = `${qualifyingRides.length} Ready Now`;
-  if (alertSubtitle) {
-    alertSubtitle.innerHTML = `Your top rides currently have a wait time of <strong>${state.alertThreshold} minutes or less</strong>! Head there now.`;
-  }
-
-  let pillsHtml = '';
   let hasNewAlert = false;
-
   for (const ride of qualifyingRides) {
-    const isMustDo = isRideMustDo(ride);
-    const starPrefix = isMustDo ? '★ ' : '◆ ';
-
-    pillsHtml += `
-      <div class="alert-ride-pill" data-ride-id="${ride.id}">
-        <span>${starPrefix}${escapeHtml(ride.name)}</span>
-        <span class="wait-tag">${ride.waitTime}m</span>
-      </div>
-    `;
-
     if (!state.lastAlertedIds.has(ride.id)) {
       hasNewAlert = true;
       state.lastAlertedIds.add(ride.id);
     }
   }
-
-  alertList.innerHTML = pillsHtml;
-
-  alertList.querySelectorAll('.alert-ride-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const card = document.querySelector(`.ride-card[data-ride-id="${pill.dataset.rideId}"]`);
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.style.transition = 'box-shadow 0.3s ease';
-        card.style.boxShadow = '0 0 25px #10b981';
-        setTimeout(() => {
-          card.style.boxShadow = '';
-        }, 1500);
-      }
-    });
-  });
 
   if (hasNewAlert) {
     if (state.soundEnabled) playDisneyChime();
@@ -1326,6 +1479,7 @@ function updateHopperCardsUI() {
     const walkEl = document.getElementById(`hopWalk-${park.code}`);
     const favEl = document.getElementById(`hopFav-${park.code}`);
     const headlinersEl = document.getElementById(`hopHeadliners-${park.code}`);
+    const hoursEl = document.getElementById(`hopHours-${park.code}`);
 
     if (meta && avgEl) {
       avgEl.textContent = `Avg ${meta.avgWait}m`;
@@ -1334,6 +1488,21 @@ function updateHopperCardsUI() {
       
       const favCount = attractions.filter(a => !isRideIgnored(a) && (isRideMustDo(a) || isRideSecondary(a))).length;
       if (favEl) favEl.textContent = `${favCount}`;
+    }
+
+    if (hoursEl) {
+      const sched = state.parkSchedules[pid];
+      if (sched && sched.length > 0) {
+        const today = getOrlandoDateString(0);
+        const op = sched.find(s => s.date === today && s.type === 'OPERATING');
+        if (op && op.openingTime && op.closingTime) {
+          hoursEl.textContent = `🕒 Today: ${formatScheduleTime(op.openingTime)} – ${formatScheduleTime(op.closingTime)}`;
+        } else {
+          hoursEl.textContent = `🕒 Today: Hours in park`;
+        }
+      } else {
+        hoursEl.textContent = `🕒 Today: Hours loading...`;
+      }
     }
 
     if (headlinersEl && attractions.length > 0) {
@@ -1358,6 +1527,7 @@ function switchPark(parkId) {
 
   initTheme(parkId);
   renderStatsRibbon();
+  renderParkHours();
 
   if (state.parkData[parkId]) {
     renderLandChips(state.parkData[parkId]);
@@ -1477,10 +1647,19 @@ function initEventListeners() {
     });
   });
 
-  const dismissAlertBtn = document.getElementById('dismissAlertBtn');
-  if (dismissAlertBtn) {
-    dismissAlertBtn.addEventListener('click', () => {
-      document.getElementById('priorityAlertBanner').style.display = 'none';
+  // Upcoming Park Hours Accordion Toggle
+  const toggleUpcomingBtn = document.getElementById('toggleUpcomingHoursBtn');
+  const upcomingContainer = document.getElementById('upcomingHoursContainer');
+  if (toggleUpcomingBtn && upcomingContainer) {
+    toggleUpcomingBtn.addEventListener('click', () => {
+      state.upcomingHoursOpen = !state.upcomingHoursOpen;
+      upcomingContainer.style.display = state.upcomingHoursOpen ? 'block' : 'none';
+      toggleUpcomingBtn.classList.toggle('is-expanded', state.upcomingHoursOpen);
+      toggleUpcomingBtn.setAttribute('aria-expanded', String(state.upcomingHoursOpen));
+      const label = document.getElementById('hoursToggleLabel');
+      if (label) {
+        label.textContent = state.upcomingHoursOpen ? '✕ Hide Upcoming Schedule' : '📅 View Next 3 Days Schedule';
+      }
     });
   }
 

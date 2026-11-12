@@ -387,127 +387,229 @@ html, body {
 }
 
 /* ==========================================================================
-   PRIORITY ALERT BANNER (Drop Alert <= 20 min)
+   PARK OPERATING HOURS CARD
    ========================================================================== */
 
-.alert-banner {
+.park-hours-card {
   position: relative;
   overflow: hidden;
-  margin: 12px 16px 8px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.18));
-  border: 1.5px solid rgba(16, 185, 129, 0.6);
+  margin: 10px 16px 6px;
+  background: rgba(30, 41, 59, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.park-hours-main {
   padding: 12px 14px;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
-  animation: slideDownAlert 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes slideDownAlert {
-  from { opacity: 0; transform: translateY(-12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.alert-glow {
-  position: absolute;
-  top: -20px;
-  right: -20px;
-  width: 90px;
-  height: 90px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.5), transparent 70%);
-  pointer-events: none;
-}
-
-.alert-icon-col {
+.park-hours-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: #10b981;
-  border-radius: 10px;
-  flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.alert-bell {
-  font-size: 20px;
-}
-
-.alert-body {
-  flex: 1;
-}
-
-.alert-headline-row {
+.hours-title-group {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.alert-title {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
+.hours-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.hours-heading-box {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.hours-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #f1f5f9;
+}
+
+.hours-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.hours-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  text-transform: capitalize;
+  letter-spacing: 0.2px;
+}
+
+.hours-status-badge.status-open {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.5);
   color: #34d399;
 }
 
-.alert-count-pill {
-  font-size: 10px;
-  font-weight: 700;
-  background: rgba(16, 185, 129, 0.3);
-  border: 1px solid #10b981;
-  color: #fff;
-  padding: 1px 7px;
-  border-radius: 10px;
+.hours-status-badge.status-closing {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
 }
 
-.alert-subtitle {
-  font-size: 12px;
-  color: #e2e8f0;
-  margin-top: 3px;
-  line-height: 1.35;
+.hours-status-badge.status-closed {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
 }
 
-.alert-rides-list {
+.hours-status-badge.status-opening {
+  background: rgba(6, 182, 212, 0.18);
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  color: #38bdf8;
+}
+
+.park-hours-times-row {
+  margin-top: 6px;
+}
+
+.park-hours-times {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: #ffffff;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.park-hours-special {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   margin-top: 8px;
 }
 
-.alert-ride-pill {
+.hours-special-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  border-radius: 12px;
-  padding: 3px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #fff;
-  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
 }
 
-.alert-ride-pill .wait-tag {
-  background: #10b981;
-  color: #022c22;
-  font-weight: 800;
-  border-radius: 6px;
-  padding: 0 5px;
-  font-size: 10px;
+.hours-special-pill.early-entry {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.35);
+  color: #38bdf8;
 }
 
-.alert-dismiss-btn {
+.hours-special-pill.event {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.upcoming-hours-toggle-wrap {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.upcoming-hours-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 20px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
+  padding: 2px 0;
+  transition: color 0.15s ease;
+}
+
+.upcoming-hours-btn:hover, .upcoming-hours-btn:active {
+  color: #e2e8f0;
+}
+
+.hours-toggle-arrow {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.upcoming-hours-btn.is-expanded .hours-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.upcoming-hours-container {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.upcoming-hours-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upcoming-day-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 5px 8px;
+  background: rgba(15, 23, 42, 0.45);
+  border-radius: 8px;
+}
+
+.upcoming-day-name {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.upcoming-day-hours {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.upcoming-day-perk {
+  font-size: 10px;
+  color: #38bdf8;
+  margin-left: 6px;
+}
+
+/* Hopper Modal Park Hours Tag */
+.h-hours-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: 6px;
+  padding: 2px 7px;
+  margin: 4px 0 6px;
+  display: inline-block;
+  width: fit-content;
 }
 
 /* ==========================================================================

@@ -12,13 +12,13 @@
   <title>RopeDrop • Disney World Wait Times & Hopper</title>
 
   <!-- PWA Manifest & Icons -->
-  <link rel="manifest" href="manifest.json?v=2.1">
+  <link rel="manifest" href="manifest.json?v=2.2">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
-  <!-- Stylesheet (Cache-Busted v2.1) -->
-  <link rel="stylesheet" href="app.css?v=2.1">
+  <!-- Stylesheet (Cache-Busted v2.2) -->
+  <link rel="stylesheet" href="app.css?v=2.2">
 </head>
 <body class="theme-mk">
   <div id="app" class="app-container">
@@ -118,25 +118,43 @@
     <!-- Main Content Area -->
     <main class="main-content" id="mainContent">
 
-      <!-- Priority Alert Banner (Dynamic: ≤ 20 min opportunity) -->
-      <section class="alert-banner" id="priorityAlertBanner" style="display: none;">
-        <div class="alert-glow"></div>
-        <div class="alert-icon-col">
-          <span class="alert-bell">⚡</span>
-        </div>
-        <div class="alert-body">
-          <div class="alert-headline-row">
-            <span class="alert-title">SHORT WAIT OPPORTUNITY!</span>
-            <span class="alert-count-pill" id="alertCountBadge">1 Ready</span>
+      <!-- Live Park Operating Hours Card -->
+      <section class="park-hours-card" id="parkHoursCard" aria-label="Today's Park Hours">
+        <div class="park-hours-main">
+          <div class="park-hours-header">
+            <div class="hours-title-group">
+              <span class="hours-icon">🕒</span>
+              <div class="hours-heading-box">
+                <span class="hours-title">Today's Park Hours</span>
+                <span class="hours-date" id="parkHoursDate">Today</span>
+              </div>
+            </div>
+            <span class="hours-status-badge status-open" id="parkStatusBadge">Open</span>
           </div>
-          <p class="alert-subtitle" id="alertSubtitle">
-            Your favorited rides currently have a wait time of <strong>20 minutes or less</strong>!
-          </p>
-          <div class="alert-rides-list" id="alertRidesList">
-            <!-- Dynamic ride chips -->
+
+          <div class="park-hours-times-row">
+            <div class="park-hours-times" id="parkOperatingHours">Loading today's hours...</div>
+          </div>
+
+          <!-- Special Event & Early Entry Perks -->
+          <div class="park-hours-special" id="parkHoursSpecial" style="display: none;">
+            <!-- Dynamically populated via JS -->
+          </div>
+
+          <!-- Upcoming Days Schedule Accordion -->
+          <div class="upcoming-hours-toggle-wrap">
+            <button class="upcoming-hours-btn" id="toggleUpcomingHoursBtn" type="button" aria-expanded="false">
+              <span id="hoursToggleLabel">📅 View Next 3 Days Schedule</span>
+              <span class="hours-toggle-arrow" id="hoursChevron">▾</span>
+            </button>
+          </div>
+
+          <div class="upcoming-hours-container" id="upcomingHoursContainer" style="display: none;">
+            <div class="upcoming-hours-list" id="upcomingHoursList">
+              <!-- Dynamically populated via JS -->
+            </div>
           </div>
         </div>
-        <button class="alert-dismiss-btn" id="dismissAlertBtn" aria-label="Dismiss">&times;</button>
       </section>
 
       <!-- Status & Park Stats Ribbon -->
@@ -251,6 +269,7 @@
               <span class="h-park-name">🏰 Magic Kingdom</span>
               <span class="h-avg-badge" id="hopAvg-mk">Avg --m</span>
             </div>
+            <div class="h-hours-tag" id="hopHours-mk">🕒 Today: Loading hours...</div>
             <div class="h-card-stats">
               <span>Open: <strong id="hopOpen-mk">--</strong></span>
               <span>&le;20m: <strong class="highlight-green" id="hopWalk-mk">--</strong></span>
@@ -266,6 +285,7 @@
               <span class="h-park-name">🌐 EPCOT</span>
               <span class="h-avg-badge" id="hopAvg-epcot">Avg --m</span>
             </div>
+            <div class="h-hours-tag" id="hopHours-epcot">🕒 Today: Loading hours...</div>
             <div class="h-card-stats">
               <span>Open: <strong id="hopOpen-epcot">--</strong></span>
               <span>&le;20m: <strong class="highlight-green" id="hopWalk-epcot">--</strong></span>
@@ -281,6 +301,7 @@
               <span class="h-park-name">🎬 Hollywood Studios</span>
               <span class="h-avg-badge" id="hopAvg-dhs">Avg --m</span>
             </div>
+            <div class="h-hours-tag" id="hopHours-dhs">🕒 Today: Loading hours...</div>
             <div class="h-card-stats">
               <span>Open: <strong id="hopOpen-dhs">--</strong></span>
               <span>&le;20m: <strong class="highlight-green" id="hopWalk-dhs">--</strong></span>
@@ -296,6 +317,7 @@
               <span class="h-park-name">🦁 Animal Kingdom</span>
               <span class="h-avg-badge" id="hopAvg-dak">Avg --m</span>
             </div>
+            <div class="h-hours-tag" id="hopHours-dak">🕒 Today: Loading hours...</div>
             <div class="h-card-stats">
               <span>Open: <strong id="hopOpen-dak">--</strong></span>
               <span>&le;20m: <strong class="highlight-green" id="hopWalk-dak">--</strong></span>
@@ -473,7 +495,7 @@
           </div>
 
           <div class="app-version-footer">
-            <span>RopeDrop v2.1 • Disney World Wait Times & Hopper</span>
+            <span>RopeDrop v2.2 • Disney World Wait Times & Hopper</span>
           </div>
         </div>
       </div>
@@ -535,7 +557,7 @@
 
   </div>
 
-  <!-- Scripts (Cache-busted v2.1) -->
-  <script src="app.js?v=2.1"></script>
+  <!-- Scripts (Cache-busted v2.2) -->
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>

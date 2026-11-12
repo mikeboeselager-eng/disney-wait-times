@@ -1,5 +1,5 @@
-// RopeDrop Service Worker v2.0 - Network First Strategy
-const CACHE_NAME = 'ropedrop-v2.0';
+// RopeDrop Service Worker v2.2 - Network First Strategy
+const CACHE_NAME = 'ropedrop-v2.2';
 
 const STATIC_ASSETS = [
   './',
